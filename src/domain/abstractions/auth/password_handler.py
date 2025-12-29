@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 
 
-class AbstractPasswordHandler(ABC):
-    """Abstract password handler interface."""
+class IPasswordHandler(ABC):
+    """Interface for handling password operations."""
 
     @abstractmethod
     def hash_password(self, password: str) -> str:
-        """Hash password."""
+        """Hash the given password using a secure algorithm."""
         pass
 
     @abstractmethod
     def validate_password(self, password: str, hashed_password: str) -> bool:
-        """Validate password against hash."""
+        """Validates if the given password matches the hashed password."""
         pass

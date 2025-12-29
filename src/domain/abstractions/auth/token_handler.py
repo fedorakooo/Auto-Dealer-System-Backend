@@ -1,23 +1,31 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from src.domain.value_objects.token_type import TokenType
 
-
-class AbstractTokenHandler(ABC):
-    """Abstract token handler interface."""
+class ITokenHandler(ABC):
+    """Interface for handling token operations."""
 
     @abstractmethod
-    def encode_jwt(self, payload: dict[str, Any], token_type: TokenType) -> str:
-        """Encode JWT token."""
+    def encode_jwt(
+        self,
+        payload: dict,
+        expire_minutes: float,
+    ) -> str:
+        """Encodes the given payload into a JWT token."""
         pass
 
     @abstractmethod
-    def decode_jwt(self, token: str) -> dict[str, Any]:
-        """Decode JWT token."""
+    def decode_jwt(
+        self,
+        token: str | bytes,
+    ) -> dict[str, Any]:
+        """Decodes the given JWT and returns its payload."""
         pass
 
     @abstractmethod
-    def get_token_type(self, token: str) -> TokenType:
-        """Get token type from token."""
+    def get_token_type(
+        self,
+        token: str | bytes,
+    ) -> str:
+        """Gets the token type from the JWT payload."""
         pass
