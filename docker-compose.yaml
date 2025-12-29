@@ -2,13 +2,20 @@ services:
   app:
     build: ./
     env_file: ./.env
+    environment:
+      - POSTGRES_HOST=database
+      - REDIS_HOST=redis
     ports:
       - "8000:8000"
     volumes:
       - ./logs:/app/logs
     depends_on:
-      - database
-      - redis
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
 
   database:
     image: postgres:12
@@ -19,9 +26,23 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_NAME}
     volumes:
-      - /var/lib/postgres/data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/sql/02-data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+      - ./db/sql/03-dealership.sql:/docker-entrypoint-initdb.d/03-dealership.sql:ro
+      - ./db/sql/03-models.sql:/docker-entrypoint-initdb.d/03-models.sql:ro
+      - ./db/sql/03-users.sql:/docker-entrypoint-initdb.d/03-users.sql:ro
+      - ./db/sql/04-tasks.sql:/docker-entrypoint-initdb.d/04-tasks.sql:ro
+      - ./db/sql/05-tasks.sql:/docker-entrypoint-initdb.d/05-tasks.sql:ro
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
   redis:
     image: redis:8.0
@@ -39,24 +60,36 @@ services:
         echo "requirepass $REDIS_PASSWORD" >> /usr/local/etc/redis/redis.conf &&
         echo "appendonly yes" >> /usr/local/etc/redis/redis.conf &&
         echo "appendfsync everysec" >> /usr/local/etc/redis/redis.conf &&
-        echo "user default on nopass ~* +@all" > /usr/local/etc/redis/users.acl &&
-        echo "user $REDIS_USER on >$REDIS_USER_PASSWORD ~* +@all" >> /usr/local/etc/redis/users.acl &&
+        echo "user $REDIS_USER on >$REDIS_USER_PASSWORD ~* +@all" > /usr/local/etc/redis/users.acl &&
         redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl
       '
     volumes:
-      - /redisdata:/data
+      - redis_data:/data
+    networks:
+      - app-network
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:2.1
     container_name: localstack
     ports:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=s3
-      - DEBUG=1
-      - DATA_DIR=/var/lib/localstack/data
-      - AWS_DEFAULT_REGION=us-east-1
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_REGION_NAME=${S3_REGION_NAME}
     volumes:
-      - ./localstack:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
+      - localstack_data:/tmp/localstack
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:
+
+networks:
+  app-network:
+    driver: bridge
