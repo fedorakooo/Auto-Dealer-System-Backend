@@ -1,5 +1,3 @@
-"""Application configuration management."""
-
 from pathlib import Path
 from typing import Any
 
@@ -10,11 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class PostgresSettings(BaseSettings):
     """PostgreSQL connection settings."""
 
-    POSTGRES_USER: str
-    POSTGRES_HOST: str
-    POSTGRES_PORT: str
-    POSTGRES_NAME: str
-    POSTGRES_PASSWORD: str
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_NAME: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
 
     @property
     def url(self) -> str:
@@ -46,8 +44,8 @@ class LoggerSettings(BaseSettings):
 class JWTSettings(BaseSettings):
     """JWT settings."""
 
-    PRIVATE_KEY: str
-    PUBLIC_KEY: str
+    PRIVATE_KEY: str = ""
+    PUBLIC_KEY: str = ""
     algorithm: str = "RS256"
     access_token_expire_minutes: float = 15
     refresh_token_expire_minutes: float = 20160
@@ -70,10 +68,10 @@ class JWTSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     """Redis connection settings."""
 
-    REDIS_PORT: str
-    REDIS_HOST: str
-    REDIS_USER: str
-    REDIS_USER_PASSWORD: str
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: str = "6379"
+    REDIS_USER: str = ""
+    REDIS_USER_PASSWORD: str = ""
     decode_responses: bool = True
 
     @property
@@ -98,12 +96,11 @@ class RedisSettings(BaseSettings):
 class S3Settings(BaseSettings):
     """S3 connection settings."""
 
-    S3_ACCESS_KEY: str
-    S3_SECRET_ACCESS_KEY: str
-    S3_ENDPOINT_URL: str
-    S3_BUCKET_NAME: str
-    upload_expiration: int = 600
-    photo_expiration: int = 600
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
+    S3_ENDPOINT_URL: str = "http://localhost:9000"
+    S3_BUCKET_NAME: str = "auto-dealer-media"
+    S3_REGION_NAME: str = "us-east-1"
 
     @property
     def access_key(self) -> str:
@@ -118,8 +115,12 @@ class S3Settings(BaseSettings):
         return self.S3_ENDPOINT_URL
 
     @property
-    def bucket(self) -> str:
+    def bucket_name(self) -> str:
         return self.S3_BUCKET_NAME
+
+    @property
+    def region_name(self) -> str:
+        return self.S3_REGION_NAME
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -136,8 +137,12 @@ class Settings(BaseSettings):
     def __init__(self) -> None:
         super().__init__()
         self.logger_settings.LOGGING_CONFIG = LoggerSettings.load_from_yaml()
+        self.jwt_settings = JWTSettings()
         jwt_config = JWTSettings.load_from_yaml()
-        self.jwt_settings = JWTSettings(**jwt_config)
+        if jwt_config:
+            for key, value in jwt_config.items():
+                if hasattr(self.jwt_settings, key):
+                    setattr(self.jwt_settings, key, value)
 
 
 settings = Settings()
