@@ -24,3 +24,10 @@ class InvalidCredentialsError(LoginError):
 
     def __init__(self):
         super().__init__("Invalid email or password")
+
+
+class ForbiddenError(Exception):
+    """Raised when user does not have permission to perform action."""
+
+    def __init__(self):
+        super().__init__("Forbidden")
