@@ -174,6 +174,16 @@ CREATE TABLE vehicle_media (
     updated_at TIMESTAMPTZ
 );
 
+CREATE TABLE model_media (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    model_id UUID NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+    url VARCHAR(512) NOT NULL,
+    media_type media_type NOT NULL,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ
+);
+
 CREATE TABLE favorites (
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
@@ -218,6 +228,7 @@ CREATE TRIGGER trg_vehicles_updated_at BEFORE UPDATE ON vehicles FOR EACH ROW EX
 CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_custom_orders_updated_at BEFORE UPDATE ON custom_orders FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_vehicle_media_updated_at BEFORE UPDATE ON vehicle_media FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_model_media_updated_at BEFORE UPDATE ON model_media FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_test_drive_requests_updated_at BEFORE UPDATE ON test_drive_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -237,3 +248,4 @@ CREATE INDEX idx_reviews_model_id ON reviews(model_id);
 CREATE INDEX idx_test_drive_requests_customer_id ON test_drive_requests(customer_id);
 CREATE INDEX idx_test_drive_requests_vehicle_id ON test_drive_requests(vehicle_id);
 CREATE INDEX idx_vehicle_media_vehicle_id ON vehicle_media(vehicle_id);
+CREATE INDEX idx_model_media_model_id ON model_media(model_id);
