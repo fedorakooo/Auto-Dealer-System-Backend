@@ -60,10 +60,12 @@ def get_auth_service(
 def get_user_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> IUserService:
     return UserService(
         uow=uow,
         password_handler=password_handler,
+        redis_client=redis_client,
     )
 
 
@@ -83,8 +85,9 @@ def get_vehicle_service(
 
 def get_city_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> ICityService:
-    return CityService(uow=uow)
+    return CityService(uow=uow, redis_client=redis_client)
 
 
 def get_customer_service(
@@ -96,8 +99,9 @@ def get_customer_service(
 
 def get_dealership_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> IDealershipService:
-    return DealershipService(uow=uow)
+    return DealershipService(uow=uow, redis_client=redis_client)
 
 
 def get_feature_service(

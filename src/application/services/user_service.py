@@ -4,8 +4,10 @@ from src.application.abstractions.user_service import IUserService
 from src.application.dtos.user_dto import UserCreateDTO, UserDTO, UserUpdateDTO
 from src.application.exceptions.errors import BusinessError, NotFoundError
 from src.application.mappers.user_mapper import UserMapper
+from src.application.utils.cache_manager import CacheManager
 from src.domain.abstractions.auth.password_handler import IPasswordHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.redis.redis_client import IRedisClient
 from src.domain.entities.customer import Customer
 from src.domain.value_objects.filters import UserFilter
 from src.domain.value_objects.user_role import UserRole
@@ -19,9 +21,17 @@ class UserService(IUserService):
         self,
         uow: IUnitOfWork,
         password_handler: IPasswordHandler,
+        redis_client: IRedisClient,
     ):
         self._uow = uow
         self._password_handler = password_handler
+        self._cache = CacheManager(redis_client)
+
+    async def _invalidate_user_caches(self, user_id: UUID | None = None) -> None:
+        await self._cache.invalidate_namespace("users")
+        if user_id:
+            await self._cache.delete_cached(f"user:{user_id}")
+            await self._cache.delete_cached(f"user:session:{user_id}")
 
     async def create_user(self, create_dto: UserCreateDTO) -> UserDTO:
         logger.debug(f"Creating user with email: {create_dto.email}")
@@ -57,16 +67,26 @@ class UserService(IUserService):
                 else:
                     logger.warning(f"Customer already exists for user {created_user.id}, skipping creation")
 
-        return UserMapper.from_entity_to_dto(created_user)
+        dto = UserMapper.from_entity_to_dto(created_user)
+        await self._invalidate_user_caches(created_user.id)
+        return dto
 
     async def get_user(self, user_id: UUID) -> UserDTO:
         logger.debug(f"Getting user with id: {user_id}")
+        cache_key = f"user:{user_id}"
+        cached_user = await self._cache.get_cached(cache_key, UserDTO)
+        if cached_user:
+            return cached_user
+
         async with self._uow as uow:
             user = await uow.user_repository.get_by_id(user_id)
             if not user:
                 logger.warning(f"User not found with id: {user_id}")
                 raise NotFoundError("User", str(user_id))
-        return UserMapper.from_entity_to_dto(user)
+        
+        dto = UserMapper.from_entity_to_dto(user)
+        await self._cache.set_cached(cache_key, dto, UserDTO, ttl=3600)
+        return dto
 
     async def get_user_by_email(self, email: str) -> UserDTO:
         async with self._uow as uow:
@@ -76,9 +96,19 @@ class UserService(IUserService):
         return UserMapper.from_entity_to_dto(user)
 
     async def get_users(self, user_filter: UserFilter) -> tuple[list[UserDTO], int]:
+        version = await self._cache.get_namespace_version("users")
+        cache_key = f"users:list:v{version}:{hash(str(user_filter))}"
+        
+        cached_result = await self._cache.get_cached(cache_key, tuple[list[UserDTO], int])
+        if cached_result:
+            return cached_result
+
         async with self._uow as uow:
             users, total = await uow.user_repository.get_users(user_filter)
-        return [UserMapper.from_entity_to_dto(user) for user in users], total
+        
+        result = [UserMapper.from_entity_to_dto(user) for user in users], total
+        await self._cache.set_cached(cache_key, result, tuple[list[UserDTO], int], ttl=3600)
+        return result
 
     async def update_user(
         self, user_id: UUID, update_dto: UserUpdateDTO, current_user_id: UUID | None = None
@@ -116,7 +146,9 @@ class UserService(IUserService):
             saved_user = await uow.user_repository.update(updated_user)
             logger.info(f"User updated successfully with id: {user_id}")
 
-        return UserMapper.from_entity_to_dto(saved_user)
+        dto = UserMapper.from_entity_to_dto(saved_user)
+        await self._invalidate_user_caches(user_id)
+        return dto
 
     async def delete_user(self, user_id: UUID, current_user_id: UUID | None = None) -> bool:
         logger.debug(f"Deleting user with id: {user_id}, current_user_id: {current_user_id}")
@@ -138,4 +170,6 @@ class UserService(IUserService):
 
             result = await uow.user_repository.delete(user_id)
             logger.info(f"User deleted successfully with id: {user_id}")
+        
+        await self._invalidate_user_caches(user_id)
         return result

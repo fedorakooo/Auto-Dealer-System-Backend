@@ -2,12 +2,20 @@ from src.application.abstractions.city_service import ICityService
 from src.application.dtos.city_dto import CityCreateDTO, CityDTO, CityUpdateDTO
 from src.application.exceptions.errors import BusinessError, NotFoundError
 from src.application.mappers.city_mapper import CityMapper
+from src.application.utils.cache_manager import CacheManager
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.redis.redis_client import IRedisClient
 
 
 class CityService(ICityService):
-    def __init__(self, uow: IUnitOfWork):
+    def __init__(self, uow: IUnitOfWork, redis_client: IRedisClient):
         self._uow = uow
+        self._cache = CacheManager(redis_client)
+
+    async def _invalidate_cache(self, city_id: int | None = None) -> None:
+        await self._cache.delete_cached("catalog:cities:all")
+        if city_id:
+            await self._cache.delete_cached(f"catalog:cities:{city_id}")
 
     async def create_city(self, create_dto: CityCreateDTO) -> CityDTO:
         async with self._uow as uow:
@@ -21,19 +29,37 @@ class CityService(ICityService):
             city = CityMapper.from_create_dto_to_entity(create_dto, next_id)
             created_city = await uow.city_repository.create(city)
 
-        return CityMapper.from_entity_to_dto(created_city)
+        dto = CityMapper.from_entity_to_dto(created_city)
+        await self._invalidate_cache(created_city.id)
+        return dto
 
     async def get_city(self, city_id: int) -> CityDTO:
+        cache_key = f"catalog:cities:{city_id}"
+        cached_city = await self._cache.get_cached(cache_key, CityDTO)
+        if cached_city:
+            return cached_city
+
         async with self._uow as uow:
             city = await uow.city_repository.get_by_id(city_id)
             if not city:
                 raise NotFoundError("City", str(city_id))
-        return CityMapper.from_entity_to_dto(city)
+        
+        dto = CityMapper.from_entity_to_dto(city)
+        await self._cache.set_cached(cache_key, dto, CityDTO, ttl=86400)
+        return dto
 
     async def get_all_cities(self) -> list[CityDTO]:
+        cache_key = "catalog:cities:all"
+        cached_cities = await self._cache.get_cached(cache_key, list[CityDTO])
+        if cached_cities:
+            return cached_cities
+
         async with self._uow as uow:
             cities = await uow.city_repository.get_all()
-        return [CityMapper.from_entity_to_dto(city) for city in cities]
+        
+        result = [CityMapper.from_entity_to_dto(city) for city in cities]
+        await self._cache.set_cached(cache_key, result, list[CityDTO], ttl=86400)
+        return result
 
     async def update_city(self, city_id: int, update_dto: CityUpdateDTO) -> CityDTO:
         async with self._uow as uow:
@@ -51,7 +77,9 @@ class CityService(ICityService):
             updated_city = CityMapper.from_update_dto_to_entity(city, update_dto)
             saved_city = await uow.city_repository.update(updated_city)
 
-        return CityMapper.from_entity_to_dto(saved_city)
+        dto = CityMapper.from_entity_to_dto(saved_city)
+        await self._invalidate_cache(city_id)
+        return dto
 
     async def delete_city(self, city_id: int) -> bool:
         async with self._uow as uow:
@@ -60,4 +88,6 @@ class CityService(ICityService):
                 raise NotFoundError("City", str(city_id))
 
             result = await uow.city_repository.delete(city_id)
+        
+        await self._invalidate_cache(city_id)
         return result
