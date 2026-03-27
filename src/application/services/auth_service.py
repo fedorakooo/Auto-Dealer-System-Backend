@@ -11,7 +11,7 @@ from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.redis.redis_client import IRedisClient
 from src.domain.exceptions.auth_errors import InvalidCredentialsError
 from src.domain.exceptions.token_errors import InvalidTokenError
-from src.domain.exceptions.user_errors import UserInactiveError
+from src.domain.exceptions.user_errors import UserBlockedError, UserInactiveError
 from src.domain.value_objects.auth_type import TokenType
 from src.logger import get_logger
 
@@ -33,19 +33,39 @@ class AuthService(IAuthService):
 
     async def login(self, login_dto: LoginDTO) -> TokenDTO:
         logger.debug(f"Processing login for email: {login_dto.email}")
+
+        blacklist_key = f"auth:blacklist:{login_dto.email}"
+        attempts_key = f"auth:attempts:{login_dto.email}"
+
+        if await self._redis_client.exists(blacklist_key):
+            logger.warning(f"Login failed: user blocked due to too many failed attempts: {login_dto.email}")
+            raise UserBlockedError(email=login_dto.email)
+
         async with self._uow as uow:
             user = await uow.user_repository.get_by_email(login_dto.email)
-            if not user:
-                logger.warning(f"Login failed: user not found for email: {login_dto.email}")
-                raise InvalidCredentialsError()
 
-            if not self._password_handler.validate_password(login_dto.password, user.hashed_password):
-                logger.warning(f"Login failed: invalid password for email: {login_dto.email}")
+            is_valid_password = False
+            if user:
+                is_valid_password = self._password_handler.validate_password(login_dto.password, user.hashed_password)
+
+            if not user or not is_valid_password:
+                logger.warning(f"Login failed: invalid credentials for email: {login_dto.email}")
+                attempts = await self._redis_client.incr(attempts_key)
+                if attempts == 1:
+                    await self._redis_client.expire(attempts_key, 600)
+
+                if attempts >= 3:
+                    logger.warning(f"User {login_dto.email} exceeded login attempts. Blacklisting for 10 minutes.")
+                    await self._redis_client.setex(blacklist_key, 600, "1")
+                    await self._redis_client.delete(attempts_key)
+
                 raise InvalidCredentialsError()
 
             if not user.is_active:
                 logger.warning(f"Login failed: user inactive for email: {login_dto.email}")
                 raise UserInactiveError(email=login_dto.email)
+
+        await self._redis_client.delete(attempts_key)
 
         logger.debug(f"Generating tokens for user id: {user.id}")
         access_token = self._token_handler.encode_jwt(

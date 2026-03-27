@@ -34,3 +34,13 @@ class RedisClient(IRedisClient):
         logger.debug(f"Redis DELETE operation: key={key}")
         result = await self.redis.delete(key)
         return result
+
+    async def incr(self, key: str) -> int:
+        logger.debug(f"Redis INCR operation: key={key}")
+        result = await self.redis.incr(key)
+        return result
+
+    async def expire(self, key: str, time: int) -> bool:
+        logger.debug(f"Redis EXPIRE operation: key={key}, time={time}")
+        result = await self.redis.expire(key, time)
+        return result
