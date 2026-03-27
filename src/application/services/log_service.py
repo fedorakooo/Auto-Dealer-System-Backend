@@ -57,3 +57,18 @@ class LogService:
             filters["event_type"] = event_type
 
         return await self._log_repository.get_logs(filters, limit, skip)
+
+    async def get_activity_stats(self, period: str) -> list[dict[str, Any]]:
+        return await self._log_repository.get_activity_stats(period)
+
+    async def get_top_users(self, limit: int = 10) -> list[dict[str, Any]]:
+        return await self._log_repository.get_top_users(limit)
+
+    async def get_crud_stats(self) -> list[dict[str, Any]]:
+        return await self._log_repository.get_crud_stats()
+
+    async def get_time_series(self, start_time: datetime, end_time: datetime, interval: str) -> list[dict[str, Any]]:
+        return await self._log_repository.get_time_series(start_time, end_time, interval)
+
+    async def detect_anomalies(self, threshold_multiplier: float = 2.0) -> list[dict[str, Any]]:
+        return await self._log_repository.detect_anomalies(threshold_multiplier)

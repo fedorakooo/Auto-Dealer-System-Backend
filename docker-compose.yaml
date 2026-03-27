@@ -52,7 +52,7 @@ services:
       - REDIS_USER=${REDIS_USER}
       - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: >
       sh -c '
         mkdir -p /usr/local/etc/redis &&
