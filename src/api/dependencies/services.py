@@ -23,6 +23,9 @@ from src.application.abstractions.vehicle_media_service import IVehicleMediaServ
 from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.services.auth_service import AuthService
 from src.application.services.city_service import CityService
+from src.application.services.log_service import LogService
+from src.infrastructure.mongodb.repositories.log_repository import LogRepository
+from src.infrastructure.mongodb.client import mongodb_client
 from src.application.services.custom_order_service import CustomOrderService
 from src.application.services.customer_service import CustomerService
 from src.application.services.dealership_service import DealershipService
@@ -151,3 +154,8 @@ def get_favorite_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IFavoriteService:
     return FavoriteService(uow=uow)
+
+
+def get_log_service() -> LogService:
+    log_repository = LogRepository(mongodb_client.db.logs)
+    return LogService(log_repository=log_repository)

@@ -3,12 +3,31 @@ from typing import Any
 import asyncpg
 from asyncpg import Connection, Pool
 
+import asyncio
+import time
+
 from src.config import settings
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.infrastructure.database.exceptions import DatabaseConnectionError
 from src.logger import get_logger
+from src.application.services.log_service import LogService
+from src.infrastructure.mongodb.repositories.log_repository import LogRepository
+from src.infrastructure.mongodb.client import mongodb_client
 
 logger = get_logger(__name__)
+
+
+def _log_query_async(query: str, execution_time_ms: float, status: str, details: dict | None = None) -> None:
+    if mongodb_client.db is not None:
+        log_service = LogService(LogRepository(mongodb_client.db.logs))
+        asyncio.create_task(
+            log_service.log_db_query(
+                query=query,
+                execution_time_ms=execution_time_ms,
+                status=status,
+                details=details,
+            )
+        )
 
 
 class DatabaseConnection(IDatabaseConnection):
@@ -61,36 +80,76 @@ class DatabaseConnection(IDatabaseConnection):
             await self._pool.release(connection)
 
     async def execute(self, query: str, *args) -> str:
-        if self._connection:
-            return await self._connection.execute(query, *args)
-        if not self._pool:
-            raise DatabaseConnectionError("Database pool is not initialized")
-        async with self._pool.acquire() as conn:
-            return await conn.execute(query, *args)
+        start_time = time.perf_counter()
+        status = "SUCCESS"
+        try:
+            if self._connection:
+                return await self._connection.execute(query, *args)
+            if not self._pool:
+                raise DatabaseConnectionError("Database pool is not initialized")
+            async with self._pool.acquire() as conn:
+                return await conn.execute(query, *args)
+        except Exception as e:
+            status = f"ERROR: {type(e).__name__}"
+            raise
+        finally:
+            exec_time = (time.perf_counter() - start_time) * 1000
+            args_str = [str(a) for a in args]
+            _log_query_async(query, exec_time, status, {"args": args_str})
 
     async def fetch(self, query: str, *args) -> list[asyncpg.Record]:
-        if self._connection:
-            return await self._connection.fetch(query, *args)
-        if not self._pool:
-            raise DatabaseConnectionError("Database pool is not initialized")
-        async with self._pool.acquire() as conn:
-            return await conn.fetch(query, *args)
+        start_time = time.perf_counter()
+        status = "SUCCESS"
+        try:
+            if self._connection:
+                return await self._connection.fetch(query, *args)
+            if not self._pool:
+                raise DatabaseConnectionError("Database pool is not initialized")
+            async with self._pool.acquire() as conn:
+                return await conn.fetch(query, *args)
+        except Exception as e:
+            status = f"ERROR: {type(e).__name__}"
+            raise
+        finally:
+            exec_time = (time.perf_counter() - start_time) * 1000
+            args_str = [str(a) for a in args]
+            _log_query_async(query, exec_time, status, {"args": args_str})
 
     async def fetchrow(self, query: str, *args) -> asyncpg.Record | None:
-        if self._connection:
-            return await self._connection.fetchrow(query, *args)
-        if not self._pool:
-            raise DatabaseConnectionError("Database pool is not initialized")
-        async with self._pool.acquire() as conn:
-            return await conn.fetchrow(query, *args)
+        start_time = time.perf_counter()
+        status = "SUCCESS"
+        try:
+            if self._connection:
+                return await self._connection.fetchrow(query, *args)
+            if not self._pool:
+                raise DatabaseConnectionError("Database pool is not initialized")
+            async with self._pool.acquire() as conn:
+                return await conn.fetchrow(query, *args)
+        except Exception as e:
+            status = f"ERROR: {type(e).__name__}"
+            raise
+        finally:
+            exec_time = (time.perf_counter() - start_time) * 1000
+            args_str = [str(a) for a in args]
+            _log_query_async(query, exec_time, status, {"args": args_str})
 
     async def fetchval(self, query: str, *args) -> Any:
-        if self._connection:
-            return await self._connection.fetchval(query, *args)
-        if not self._pool:
-            raise DatabaseConnectionError("Database pool is not initialized")
-        async with self._pool.acquire() as conn:
-            return await conn.fetchval(query, *args)
+        start_time = time.perf_counter()
+        status = "SUCCESS"
+        try:
+            if self._connection:
+                return await self._connection.fetchval(query, *args)
+            if not self._pool:
+                raise DatabaseConnectionError("Database pool is not initialized")
+            async with self._pool.acquire() as conn:
+                return await conn.fetchval(query, *args)
+        except Exception as e:
+            status = f"ERROR: {type(e).__name__}"
+            raise
+        finally:
+            exec_time = (time.perf_counter() - start_time) * 1000
+            args_str = [str(a) for a in args]
+            _log_query_async(query, exec_time, status, {"args": args_str})
 
     @property
     def is_connected(self) -> bool:

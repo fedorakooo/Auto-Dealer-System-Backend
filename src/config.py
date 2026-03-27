@@ -125,6 +125,22 @@ class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+class MongoSettings(BaseSettings):
+    """MongoDB connection settings."""
+
+    MONGO_HOST: str = "localhost"
+    MONGO_PORT: str = "27017"
+    MONGO_USER: str = "admin"
+    MONGO_PASSWORD: str = "admin_pwd"
+    MONGO_DB: str = "audit_logs"
+
+    @property
+    def url(self) -> str:
+        return f"mongodb://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_HOST}:{self.MONGO_PORT}/"
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
 class Settings(BaseSettings):
     """Application settings container."""
 
@@ -133,6 +149,7 @@ class Settings(BaseSettings):
     jwt_settings: JWTSettings = JWTSettings()
     redis_settings: RedisSettings = RedisSettings()
     s3_settings: S3Settings = S3Settings()
+    mongo_settings: MongoSettings = MongoSettings()
 
     def __init__(self) -> None:
         super().__init__()

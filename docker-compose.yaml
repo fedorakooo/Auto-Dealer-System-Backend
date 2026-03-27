@@ -85,10 +85,25 @@ services:
     networks:
       - app-network
 
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin_pwd}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-audit_logs}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
   redis_data:
   localstack_data:
+  mongodb_data:
 
 networks:
   app-network:
