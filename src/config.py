@@ -125,6 +125,18 @@ class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+class PubSubSettings(BaseSettings):
+    """Redis Pub/Sub settings."""
+
+    DATA_CHANGES_CHANNEL: str = "system:data_changes"
+
+    @property
+    def data_changes_channel(self) -> str:
+        return self.DATA_CHANGES_CHANNEL
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
 class MongoSettings(BaseSettings):
     """MongoDB connection settings."""
 
@@ -148,6 +160,7 @@ class Settings(BaseSettings):
     logger_settings: LoggerSettings = LoggerSettings()
     jwt_settings: JWTSettings = JWTSettings()
     redis_settings: RedisSettings = RedisSettings()
+    pubsub_settings: PubSubSettings = PubSubSettings()
     s3_settings: S3Settings = S3Settings()
     mongo_settings: MongoSettings = MongoSettings()
 

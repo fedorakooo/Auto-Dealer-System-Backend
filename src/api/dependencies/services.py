@@ -4,7 +4,8 @@ from fastapi import Depends
 
 from src.api.dependencies.auth import get_password_handler, get_token_handler
 from src.api.dependencies.database import get_unit_of_work
-from src.api.dependencies.redis import get_redis_client
+from src.api.dependencies.pubsub import get_pubsub_manager
+from src.api.dependencies.redis import get_redis_client, get_session_repository
 from src.api.dependencies.s3 import get_s3_client
 from src.application.abstractions.auth_service import IAuthService
 from src.application.abstractions.city_service import ICityService
@@ -42,7 +43,9 @@ from src.application.services.vehicle_service import VehicleService
 from src.domain.abstractions.auth.password_handler import IPasswordHandler
 from src.domain.abstractions.auth.token_handler import ITokenHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.abstractions.redis.redis_client import IRedisClient
+from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.domain.abstractions.s3.s3_client import IS3Client
 
 
@@ -51,12 +54,14 @@ def get_auth_service(
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
     token_handler: Annotated[ITokenHandler, Depends(get_token_handler)],
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
+    session_repository: Annotated[ISessionRepository, Depends(get_session_repository)],
 ) -> IAuthService:
     return AuthService(
         uow=uow,
         password_handler=password_handler,
         token_handler=token_handler,
         redis_client=redis_client,
+        session_repository=session_repository,
     )
 
 
@@ -64,11 +69,13 @@ def get_user_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
+    pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IUserService:
     return UserService(
         uow=uow,
         password_handler=password_handler,
         redis_client=redis_client,
+        pubsub=pubsub,
     )
 
 
@@ -82,8 +89,9 @@ def get_model_media_service(
 def get_vehicle_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     model_media_service: Annotated[IModelMediaService | None, Depends(get_model_media_service)],
+    pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IVehicleService:
-    return VehicleService(uow=uow, model_media_service=model_media_service)
+    return VehicleService(uow=uow, pubsub=pubsub, model_media_service=model_media_service)
 
 
 def get_city_service(

@@ -32,7 +32,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             token = auth_header.split(" ")[1]
             try:
                 payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
+                user_id = payload.get("id") or payload.get("sub")
             except Exception:
                 pass
 

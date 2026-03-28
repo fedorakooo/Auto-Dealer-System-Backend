@@ -4,6 +4,7 @@ from src.application.utils.cache_manager import CacheManager
 from src.domain.abstractions.auth.token_handler import ITokenHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.redis.redis_client import IRedisClient
+from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.domain.entities.user import User
 from src.domain.exceptions.token_errors import InvalidTokenError, TokenTypeError
 from src.domain.exceptions.user_errors import UserBlockedError, UserNotFoundError
@@ -21,10 +22,12 @@ class CurrentUserProvider:
         token_handler: ITokenHandler,
         uow: IUnitOfWork,
         redis_client: IRedisClient,
+        session_repository: ISessionRepository,
     ) -> None:
         self.token_handler = token_handler
         self.uow = uow
         self.cache_manager = CacheManager(redis_client)
+        self.session_repo = session_repository
 
     async def get_current_user(self, token: str) -> User:
         """Get current user from token.
@@ -65,6 +68,15 @@ class CurrentUserProvider:
         except (ValueError, TypeError) as exc:
             logger.warning(f"Invalid user id in token: {str(exc)}")
             raise InvalidTokenError(f"Invalid user id in token: {str(exc)}") from exc
+
+        jti = payload.get("jti")
+        if jti:
+            session = await self.session_repo.get_by_id(UUID(str(jti)))
+            if not session or not session.is_active:
+                logger.warning(f"Token session {jti} is invalid or expired.")
+                raise InvalidTokenError("Session expired or invalid")
+        else:
+            pass
 
         # Fetch user from database
         cache_key = f"user:session:{user_id}"

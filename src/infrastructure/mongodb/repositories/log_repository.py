@@ -56,7 +56,39 @@ class LogRepository(ILogRepository):
             {"$group": {"_id": "$user_id", "actions_count": {"$sum": 1}}},
             {"$sort": {"actions_count": -1}},
             {"$limit": limit},
-            {"$project": {"user_id": "$_id", "actions_count": 1, "_id": 0}}
+            {
+                "$lookup": {
+                    "from": "logs",
+                    "let": {"uid": "$_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {"$eq": ["$user_id", "$$uid"]},
+                                "event_type": "USER_ACTION",
+                            }
+                        },
+                        {"$sort": {"timestamp": -1}},
+                        {"$limit": 1},
+                        {
+                            "$project": {
+                                "_id": 0,
+                                "last_action": "$action",
+                                "last_activity_at": "$timestamp",
+                            }
+                        },
+                    ],
+                    "as": "last_event",
+                }
+            },
+            {
+                "$project": {
+                    "user_id": "$_id",
+                    "actions_count": 1,
+                    "last_action": {"$arrayElemAt": ["$last_event.last_action", 0]},
+                    "last_activity_at": {"$arrayElemAt": ["$last_event.last_activity_at", 0]},
+                    "_id": 0,
+                }
+            },
         ]
         cursor = self._collection.aggregate(pipeline)
         return await cursor.to_list(length=limit)
@@ -79,7 +111,8 @@ class LogRepository(ILogRepository):
                 }
             }},
             {"$group": {"_id": "$operation_type", "count": {"$sum": 1}}},
-            {"$project": {"operation_type": "$_id", "count": 1, "_id": 0}}
+            {"$sort": {"count": -1}},
+            {"$project": {"operation_type": "$_id", "count": 1, "_id": 0}},
         ]
         cursor = self._collection.aggregate(pipeline)
         return await cursor.to_list(length=None)
@@ -102,10 +135,33 @@ class LogRepository(ILogRepository):
                 },
                 "count": {"$sum": 1}
             }},
+            {
+                "$lookup": {
+                    "from": "logs",
+                    "let": {"tb": "$_id.time_bucket", "et": "$_id.event_type"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": [{"$dateToString": {"format": format_str, "date": "$timestamp"}}, "$$tb"]},
+                                        {"$eq": ["$event_type", "$$et"]},
+                                    ]
+                                }
+                            }
+                        },
+                        {"$match": {"user_id": {"$ne": None}}},
+                        {"$group": {"_id": None, "users": {"$addToSet": "$user_id"}}},
+                        {"$project": {"_id": 0, "n": {"$size": "$users"}}},
+                    ],
+                    "as": "audience",
+                }
+            },
             {"$project": {
                 "timestamp": "$_id.time_bucket",
                 "event_type": "$_id.event_type",
                 "count": 1,
+                "distinct_users": {"$ifNull": [{"$arrayElemAt": ["$audience.n", 0]}, 0]},
                 "_id": 0
             }},
             {"$sort": {"timestamp": 1}}
@@ -131,7 +187,40 @@ class LogRepository(ILogRepository):
                 "_id": 0
             }},
             {"$match": {"is_anomaly": True}},
-            {"$project": {"is_anomaly": 0}}
+            {
+                "$lookup": {
+                    "from": "logs",
+                    "let": {"uid": "$user_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {"$eq": ["$user_id", "$$uid"]},
+                                "event_type": "USER_ACTION",
+                            }
+                        },
+                        {"$sort": {"timestamp": -1}},
+                        {"$limit": 1},
+                        {
+                            "$project": {
+                                "_id": 0,
+                                "last_action": "$action",
+                                "last_path": "$details.path",
+                            }
+                        },
+                    ],
+                    "as": "recent",
+                }
+            },
+            {
+                "$project": {
+                    "user_id": 1,
+                    "action_count": 1,
+                    "avg_action_count": 1,
+                    "last_action": {"$arrayElemAt": ["$recent.last_action", 0]},
+                    "last_path": {"$arrayElemAt": ["$recent.last_path", 0]},
+                    "is_anomaly": 0,
+                }
+            },
         ]
         cursor = self._collection.aggregate(pipeline)
         return await cursor.to_list(length=None)

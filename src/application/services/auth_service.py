@@ -1,5 +1,5 @@
-from datetime import datetime
-from uuid import UUID
+from datetime import datetime, timedelta
+from uuid import UUID, uuid4
 
 from src.application.abstractions.auth_service import IAuthService
 from src.application.dtos.auth_dto import LoginDTO, RefreshTokenDTO, TokenDTO
@@ -9,10 +9,12 @@ from src.domain.abstractions.auth.password_handler import IPasswordHandler
 from src.domain.abstractions.auth.token_handler import ITokenHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.redis.redis_client import IRedisClient
+from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.domain.exceptions.auth_errors import InvalidCredentialsError
 from src.domain.exceptions.token_errors import InvalidTokenError
 from src.domain.exceptions.user_errors import UserBlockedError, UserInactiveError
 from src.domain.value_objects.auth_type import TokenType
+from src.domain.entities.session import UserSession
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -25,11 +27,13 @@ class AuthService(IAuthService):
         password_handler: IPasswordHandler,
         token_handler: ITokenHandler,
         redis_client: IRedisClient,
+        session_repository: ISessionRepository,
     ):
         self._uow = uow
         self._password_handler = password_handler
         self._token_handler = token_handler
         self._redis_client = redis_client
+        self._session_repo = session_repository
 
     async def login(self, login_dto: LoginDTO) -> TokenDTO:
         logger.debug(f"Processing login for email: {login_dto.email}")
@@ -68,9 +72,15 @@ class AuthService(IAuthService):
         await self._redis_client.delete(attempts_key)
 
         logger.debug(f"Generating tokens for user id: {user.id}")
+        session_id = uuid4()
+        expires_at = datetime.now() + timedelta(minutes=settings.jwt_settings.refresh_token_expire_minutes)
+        session = UserSession(id=session_id, user_id=user.id, created_at=datetime.now(), expires_at=expires_at, is_active=True)
+        await self._session_repo.save(session, default_ttl=int(settings.jwt_settings.refresh_token_expire_minutes * 60))
+
         access_token = self._token_handler.encode_jwt(
             payload={
                 "id": str(user.id),
+                "jti": str(session_id),
                 "email": user.email,
                 "role": user.role,
                 "is_active": user.is_active,
@@ -81,6 +91,7 @@ class AuthService(IAuthService):
         refresh_token = self._token_handler.encode_jwt(
             payload={
                 "id": str(user.id),
+                "jti": str(session_id),
                 "email": user.email,
                 "token_type": TokenType.REFRESH,
             },
@@ -104,10 +115,14 @@ class AuthService(IAuthService):
                 logger.warning("Refresh token failed: invalid token type")
                 raise ValidationError("Invalid token type")
 
-            blacklist_key = f"refresh-key:{refresh_dto.refresh_token}"
-            if await self._redis_client.exists(blacklist_key):
-                logger.warning("Refresh token failed: token is blacklisted")
-                raise InvalidTokenError("Refresh token has been invalidated")
+            jti = payload.get("jti")
+            if not jti:
+                raise InvalidTokenError("Token is missing session ID")
+                
+            session = await self._session_repo.get_by_id(UUID(jti))
+            if not session or not session.is_active:
+                logger.warning("Refresh token failed: session is invalid or expired")
+                raise InvalidTokenError("Session is invalid or expired")
 
             user_id = UUID(payload.get("id") or payload.get("sub"))
             logger.debug(f"Refresh token for user id: {user_id}")
@@ -123,9 +138,18 @@ class AuthService(IAuthService):
                     raise UserInactiveError(user_id=str(user_id))
 
             logger.debug(f"Generating new tokens for user id: {user.id}")
+            # Invalidate old session
+            await self._session_repo.delete(UUID(jti))
+
+            new_session_id = uuid4()
+            expires_at = datetime.now() + timedelta(minutes=settings.jwt_settings.refresh_token_expire_minutes)
+            new_session = UserSession(id=new_session_id, user_id=user.id, created_at=datetime.now(), expires_at=expires_at, is_active=True)
+            await self._session_repo.save(new_session, default_ttl=int(settings.jwt_settings.refresh_token_expire_minutes * 60))
+
             access_token = self._token_handler.encode_jwt(
                 payload={
                     "id": str(user.id),
+                    "jti": str(new_session_id),
                     "email": user.email,
                     "role": user.role,
                     "is_active": user.is_active,
@@ -136,23 +160,12 @@ class AuthService(IAuthService):
             refresh_token = self._token_handler.encode_jwt(
                 payload={
                     "id": str(user.id),
+                    "jti": str(new_session_id),
                     "email": user.email,
                     "token_type": TokenType.REFRESH,
                 },
                 expire_minutes=settings.jwt_settings.refresh_token_expire_minutes,
             )
-
-            expiration_time = payload.get("exp")
-            if expiration_time is not None:
-                current_time = datetime.now().timestamp()
-                ttl_seconds = int(expiration_time - current_time)
-                if ttl_seconds > 0:
-                    await self._redis_client.setex(
-                        key=blacklist_key,
-                        time=ttl_seconds,
-                        value=refresh_dto.refresh_token,
-                    )
-                    logger.debug(f"Added refresh token to blacklist with TTL: {ttl_seconds} seconds")
 
             logger.info(f"Token refreshed successfully for user id: {user.id}")
             return TokenDTO(
@@ -163,3 +176,15 @@ class AuthService(IAuthService):
         except (NotFoundError, ValidationError, UserInactiveError, InvalidTokenError) as exc:
             logger.warning(f"Refresh token failed: {str(exc)}")
             raise ValidationError("Invalid refresh token") from exc
+
+    async def logout(self, refresh_token: str) -> None:
+        logger.debug("Processing logout request")
+        try:
+            payload = self._token_handler.decode_jwt(refresh_token)
+            jti = payload.get("jti")
+            if jti:
+                await self._session_repo.delete(UUID(jti))
+                logger.info(f"Logout successful, deleted session: {jti}")
+        except Exception as exc:
+            logger.warning(f"Logout failed (token might already be discarded): {exc}")
+

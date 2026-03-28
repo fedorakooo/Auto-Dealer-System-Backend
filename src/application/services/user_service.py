@@ -7,10 +7,12 @@ from src.application.mappers.user_mapper import UserMapper
 from src.application.utils.cache_manager import CacheManager
 from src.domain.abstractions.auth.password_handler import IPasswordHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.abstractions.redis.redis_client import IRedisClient
 from src.domain.entities.customer import Customer
 from src.domain.value_objects.filters import UserFilter
 from src.domain.value_objects.user_role import UserRole
+from src.config import settings
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -22,10 +24,12 @@ class UserService(IUserService):
         uow: IUnitOfWork,
         password_handler: IPasswordHandler,
         redis_client: IRedisClient,
+        pubsub: IPubSubManager,
     ):
         self._uow = uow
         self._password_handler = password_handler
         self._cache = CacheManager(redis_client)
+        self._pubsub = pubsub
 
     async def _invalidate_user_caches(self, user_id: UUID | None = None) -> None:
         await self._cache.invalidate_namespace("users")
@@ -69,6 +73,11 @@ class UserService(IUserService):
 
         dto = UserMapper.from_entity_to_dto(created_user)
         await self._invalidate_user_caches(created_user.id)
+        
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel, {"entity": "user", "action": "create", "id": str(created_user.id)}
+        )
+        
         return dto
 
     async def get_user(self, user_id: UUID) -> UserDTO:
@@ -148,6 +157,11 @@ class UserService(IUserService):
 
         dto = UserMapper.from_entity_to_dto(saved_user)
         await self._invalidate_user_caches(user_id)
+
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel, {"entity": "user", "action": "update", "id": str(user_id)}
+        )
+
         return dto
 
     async def delete_user(self, user_id: UUID, current_user_id: UUID | None = None) -> bool:
@@ -172,4 +186,9 @@ class UserService(IUserService):
             logger.info(f"User deleted successfully with id: {user_id}")
         
         await self._invalidate_user_caches(user_id)
+
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel, {"entity": "user", "action": "delete", "id": str(user_id)}
+        )
+
         return result
