@@ -13,6 +13,7 @@ from src.config import settings
 from src.infrastructure.mongodb.client import mongodb_client
 from src.infrastructure.pubsub.redis_pubsub import RedisPubSubManager
 from src.infrastructure.redis.client import RedisClient
+from src.infrastructure.startup.employee_seed import seed_employees_if_missing
 from src.logger import get_logger, setup_logging
 
 
@@ -32,6 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         async_engine = await get_async_engine()
         logger.debug("Database engine initialized")
+
+        await seed_employees_if_missing(async_engine, settings.employee_seed_settings.path)
 
         await mongodb_client.connect()
         logger.debug("MongoDB client initialized")

@@ -3,6 +3,7 @@ from uuid import UUID
 
 import asyncpg
 
+from src.config import settings
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.domain.abstractions.database.repositories.user_repository import IUserRepository
 from src.domain.entities.user import User
@@ -45,20 +46,46 @@ class UserRepository(IUserRepository):
 
         sort_by = user_filter.sort_by.value if user_filter.sort_by else "created_at"
         order_direction = user_filter.order_by.value.upper()
+        sort_col = sort_by if sort_by in settings.user_list_settings.sort_columns else "created_at"
+        order_dir = order_direction if order_direction in ("ASC", "DESC") else "ASC"
 
-        query = "SELECT * FROM get_users_filtered($1, $2::user_role, $3, $4, $5, $6, $7)"
+        query = f"""
+            SELECT
+                u.id,
+                u.first_name,
+                u.second_name,
+                u.phone_number,
+                u.email,
+                u.hashed_password,
+                u.role,
+                u.is_active,
+                u.created_at,
+                u.updated_at,
+                c.date_of_birth
+            FROM users u
+            LEFT JOIN customers c ON c.user_id = u.id
+            WHERE ($1::varchar IS NULL OR u.email ILIKE '%' || $1::varchar || '%')
+              AND ($2::user_role IS NULL OR u.role = $2::user_role)
+              AND ($3::boolean IS NULL OR u.is_active = $3::boolean)
+            ORDER BY u.{sort_col} {order_dir}
+            OFFSET $4::integer LIMIT $5::integer
+        """
         rows = await self._db.fetch(
             query,
             user_filter.email,
             user_filter.role,
             user_filter.is_active,
-            sort_by,
-            order_direction,
             offset,
             user_filter.limit,
         )
 
-        count_query = "SELECT count_users_filtered($1, $2::user_role, $3)"
+        count_query = """
+            SELECT COUNT(*)::bigint
+            FROM users u
+            WHERE ($1::varchar IS NULL OR u.email ILIKE '%' || $1::varchar || '%')
+              AND ($2::user_role IS NULL OR u.role = $2::user_role)
+              AND ($3::boolean IS NULL OR u.is_active = $3::boolean)
+        """
 
         total = await self._db.fetchval(
             count_query,

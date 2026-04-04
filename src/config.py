@@ -153,6 +153,28 @@ class MongoSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+class EmployeeSeedSettings(BaseSettings):
+    """Seed employee users from YAML at API startup."""
+
+    EMPLOYEES_FILE: str = "employees.yaml"
+
+    @property
+    def path(self) -> Path:
+        return Path(__file__).resolve().parent.parent / self.EMPLOYEES_FILE
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+class UserListSettings(BaseSettings):
+    """User list query constraints (e.g. SQL identifier whitelist)."""
+
+    @property
+    def sort_columns(self) -> frozenset[str]:
+        return frozenset({"created_at", "email", "first_name", "second_name"})
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
 class Settings(BaseSettings):
     """Application settings container."""
 
@@ -163,6 +185,8 @@ class Settings(BaseSettings):
     pubsub_settings: PubSubSettings = PubSubSettings()
     s3_settings: S3Settings = S3Settings()
     mongo_settings: MongoSettings = MongoSettings()
+    employee_seed_settings: EmployeeSeedSettings = EmployeeSeedSettings()
+    user_list_settings: UserListSettings = UserListSettings()
 
     def __init__(self) -> None:
         super().__init__()

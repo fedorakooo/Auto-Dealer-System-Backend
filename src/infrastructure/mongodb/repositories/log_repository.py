@@ -218,7 +218,6 @@ class LogRepository(ILogRepository):
                     "avg_action_count": 1,
                     "last_action": {"$arrayElemAt": ["$recent.last_action", 0]},
                     "last_path": {"$arrayElemAt": ["$recent.last_path", 0]},
-                    "is_anomaly": 0,
                 }
             },
         ]
