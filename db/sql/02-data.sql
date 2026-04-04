@@ -1,30 +1,3 @@
-INSERT INTO users (id, first_name, second_name, phone_number, email, hashed_password, role) VALUES
-('f47ac10b-58cc-4372-a567-0e02b2c3d479', 'Jan', 'Kowalski', '+48123456789', 'jan.kowalski@gmail.com', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'customer'),
-('74a7c136-2e89-420d-a867-93b36240665e', 'Anna', 'Nowak', '+48987654321', 'anna.nowak@gmail.com', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'customer'),
-('88c03b34-fd50-4c59-8e46-c60470c58ac2', 'Aleksey', 'Ivanov', '+375291112233', 'alex.ivanov@example.com', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'customer'),
-('aedaf184-df84-4243-b79d-839befafe020', 'Elena', 'Petrova', '+375294445566', 'elena.petrova@example.com', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'customer'),
-('b63e7b82-3a0e-40bb-b36f-fd2a5fe59b5b', 'Dmitry', 'Sidorov', '+375297778899', 'dmitry.sidorov@example.com', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'customer'),
-('27fcc76f-5c73-4233-bb44-e3a30a75dd17', 'Maksim', 'Vorobey', '+375441234567', 'm.vorobey@audi-belarus.by', '$2a$12$yB6TDlctxGmu1mzFhvCIgOJuF9UrhkdAzWDthftc8D5FHJDU7eXyu', 'employee'),
-('91ab7d70-7394-4e90-bc69-4a73e2cc8fb4', 'Piotr', 'Lewandowski', '+48123456790', 'piotr.lewandowski@gmail.com', '$2a$12$dummyhash', 'customer'),
-('9b5e9673-98f0-4e2e-95f2-0e871a9cd0dd', 'Katarzyna', 'Zielinska', '+48123456791', 'k.zielinska@gmail.com', '$2a$12$dummyhash', 'customer'),
-('64b3b542-27f1-4384-8ef2-b90eaf84b6c4', 'Oleg', 'Smirnov', '+375291223344', 'oleg.smirnov@example.com', '$2a$12$dummyhash', 'customer'),
-('82a673aa-0cd5-4cf7-b7b5-45283a6a7e29', 'Irina', 'Kuznetsova', '+375294556677', 'irina.kuznetsova@example.com', '$2a$12$dummyhash', 'customer'),
-('9ef2b94a-d81c-4db3-b2b5-2315b82c2275', 'Sergey', 'Petrov', '+375297889900', 'sergey.petrov@example.com', '$2a$12$dummyhash', 'customer'),
-('8b8b03e3-9a1c-48db-9dc8-1b3b54d68b10', 'Anna', 'Kowalczyk', '+48123456792', 'anna.kowalczyk@gmail.com', '$2a$12$dummyhash', 'employee'),
-('a1c3ed2b-7358-4d4b-a704-21cb32b8c1b5', 'Marek', 'Nowicki', '+48123456793', 'marek.nowicki@gmail.com', '$2a$12$dummyhash', 'employee');
-
-INSERT INTO customers (id, user_id, date_of_birth) VALUES
-('a0a0a38e-ba5d-4944-abe0-905123835c0b', 'f47ac10b-58cc-4372-a567-0e02b2c3d479', '1990-05-15'),
-('c48d4561-7c39-43b0-b13e-174fa921ecea', '74a7c136-2e89-420d-a867-93b36240665e', '1995-11-22'),
-('d20b74c3-7aba-4358-ae0a-623105f9b58e', '88c03b34-fd50-4c59-8e46-c60470c58ac2', '1985-01-30'),
-('e5916cb8-1404-47d1-afb8-af7ff8d5eec9', 'aedaf184-df84-4243-b79d-839befafe020', '1992-07-12'),
-('fea34eb2-6555-4901-8be8-b460bcc83d04', 'b63e7b82-3a0e-40bb-b36f-fd2a5fe59b5b', '1988-03-05'),
-('d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df', '91ab7d70-7394-4e90-bc69-4a73e2cc8fb4', '1987-02-14'),
-('f7e4c9bc-8f75-49e1-bb2b-0d04d27a5cf3', '9b5e9673-98f0-4e2e-95f2-0e871a9cd0dd', '1991-08-09'),
-('fa4b0b2e-8b22-4899-81dc-d52a689a32c1', '64b3b542-27f1-4384-8ef2-b90eaf84b6c4', '1984-12-01'),
-('cc0a09c1-9c2f-4ef3-b8da-31d1a9c7ad11', '82a673aa-0cd5-4cf7-b7b5-45283a6a7e29', '1993-06-18'),
-('ac1c8211-2cd8-4d36-9c9c-cb92a1228a00', '9ef2b94a-d81c-4db3-b2b5-2315b82c2275', '1990-04-22');
-
 INSERT INTO cities (name, country) VALUES
 ('Warsaw', 'Poland'),
 ('Krakow', 'Poland'),
@@ -130,33 +103,3 @@ INSERT INTO vehicles (model_id, dealership_id, vin, production_year, exterior_co
 ('caa83b09-cf89-4a0d-98a9-b18fd73cfdd7', 4, 'WAUZZZGEXR1000012', 2023, 'Plasma Blue', 'Black', 70000.00, true),
 ('2bb5382f-462d-42ac-8fb9-f223d0261941', 6, 'WAUZZZ8WXMINSK01', 2024, 'Mythos Black', 'Brown', 46000.00, true),
 ('89ccc9a3-76b1-4cc9-aa49-b73dea7ecf9f', 7, 'WAUZZZGEYMINSK02', 2024, 'Daytona Gray', 'Gray', 92000.00, true);
-
-INSERT INTO favorites (customer_id, vehicle_id) VALUES
-('d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df', (SELECT id FROM vehicles WHERE vin='WAUZZZ4MXN1000010')),
-('fa4b0b2e-8b22-4899-81dc-d52a689a32c1', (SELECT id FROM vehicles WHERE vin='WAUZZZF5XP1000011')),
-('cc0a09c1-9c2f-4ef3-b8da-31d1a9c7ad11', (SELECT id FROM vehicles WHERE vin='WAUZZZ8YXP1000009'));
-
-INSERT INTO reviews (customer_id, model_id, rating, title, comment) VALUES
-('d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df', 'aa0f7b44-25c8-4ad0-843d-6b46e18f91ee', 4, 'Świetny mały sedan', 'Dynamiczny, oszczędny, idealny do miasta.'),
-('fa4b0b2e-8b22-4899-81dc-d52a689a32c1', '3b7a6af5-918e-4eb3-99d1-c4f56f25f01f', 5, 'Potęga na drodze', 'Luksusowy SUV z mocnym silnikiem diesel.');
-
-INSERT INTO test_drive_requests (customer_id, vehicle_id, dealership_id, requested_datetime, status) VALUES
-('f7e4c9bc-8f75-49e1-bb2b-0d04d27a5cf3', (SELECT id FROM vehicles WHERE vin='WAUZZZ8YXP1000009'), 8, '2025-10-20 15:00:00+02', 'requested'),
-('cc0a09c1-9c2f-4ef3-b8da-31d1a9c7ad11', (SELECT id FROM vehicles WHERE vin='WAUZZZF5XP1000011'), 1, '2025-10-22 11:00:00+02', 'confirmed'),
-('fea34eb2-6555-4901-8be8-b460bcc83d04', (SELECT id FROM vehicles WHERE vin='WAUZZZ8WXMINSK01'), 6, '2025-10-25 10:00:00+03', 'requested'),
-('e5916cb8-1404-47d1-afb8-af7ff8d5eec9', (SELECT id FROM vehicles WHERE vin='WAUZZZGEYMINSK02'), 7, '2025-10-26 13:30:00+03', 'requested');
-
-INSERT INTO orders (customer_id, vehicle_id, dealership_id, status, final_price) VALUES
-('d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df', (SELECT id FROM vehicles WHERE vin='WAUZZZGEXR1000012'), 4, 'pending_payment', 70000.00),
-('fa4b0b2e-8b22-4899-81dc-d52a689a32c1', (SELECT id FROM vehicles WHERE vin='WAUZZZGEYMINSK02'), 7, 'completed', 92000.00);
-
-INSERT INTO custom_orders (customer_id, dealership_id, model_id, engine_id, transmission_id, exterior_color, interior_color, status, estimated_price) VALUES
-('d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df', 1, '6d6e9549-c8de-47e5-9dfb-1f5e00a7e9cd', 2, 1, 'Tango Red', 'Black with Red Stitching', 'confirmed', 61000.00),
-('fa4b0b2e-8b22-4899-81dc-d52a689a32c1', 6, 'caa83b09-cf89-4a0d-98a9-b18fd73cfdd7', 10, 4, 'Chronos Gray', 'Gray', 'pending_approval', 73000.00);
-
-INSERT INTO custom_order_features (custom_order_id, feature_id)
-SELECT id, 3 FROM custom_orders WHERE customer_id='d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df';
-INSERT INTO custom_order_features (custom_order_id, feature_id)
-SELECT id, 4 FROM custom_orders WHERE customer_id='d1a64c1a-9a34-44f1-b97f-1d8b6a4c29df';
-INSERT INTO custom_order_features (custom_order_id, feature_id)
-SELECT id, 6 FROM custom_orders WHERE customer_id='fa4b0b2e-8b22-4899-81dc-d52a689a32c1';
