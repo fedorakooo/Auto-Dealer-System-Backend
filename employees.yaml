@@ -1,0 +1,20 @@
+# Plaintext passwords are hashed at seed time; use strong values outside local dev.
+employees:
+  - id: "27fcc76f-5c73-4233-bb44-e3a30a75dd17"
+    first_name: Maksim
+    second_name: Vorobey
+    phone_number: "+375441234567"
+    email: m.vorobey@autodealer.com
+    password: "password"
+  - id: "8b8b03e3-9a1c-48db-9dc8-1b3b54d68b10"
+    first_name: Anna
+    second_name: Kowalczyk
+    phone_number: "+48123456792"
+    email: anna.kowalczyk@autodealer.com
+    password: "password"
+  - id: "a1c3ed2b-7358-4d4b-a704-21cb32b8c1b5"
+    first_name: Marek
+    second_name: Nowicki
+    phone_number: "+48123456793"
+    email: marek.nowicki@autodealer.com
+    password: "password"
