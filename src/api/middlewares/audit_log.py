@@ -5,8 +5,8 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from src.api.dependencies.services import get_log_service
-from src.infrastructure.mongodb.client import mongodb_client
+from src.api.dependencies.mongodb import get_mongodb_client
+from src.api.dependencies.services import create_log_service
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
@@ -20,6 +20,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return response
 
     def _log_action(self, request: Request, status_code: int) -> None:
+        mongodb_client = get_mongodb_client(request)
         if mongodb_client.db is None:
             return
 
@@ -59,7 +60,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         }
 
         try:
-            log_service = get_log_service()
+            log_service = create_log_service(mongodb_client)
             asyncio.create_task(
                 log_service.log_user_action(
                     action=action,

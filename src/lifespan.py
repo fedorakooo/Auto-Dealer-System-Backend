@@ -6,11 +6,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.dependencies.database import get_async_engine
+from src.api.dependencies.mongodb import get_mongodb_client
 from src.api.dependencies.redis import get_redis
 from src.application.handlers.data_change_handler import DataChangeCacheHandler
 from src.application.utils.cache_manager import CacheManager
 from src.config import settings
-from src.infrastructure.mongodb.client import mongodb_client
 from src.infrastructure.pubsub.redis_pubsub import RedisPubSubManager
 from src.infrastructure.redis.client import RedisClient
 from src.infrastructure.startup.employee_seed import seed_employees_if_missing
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     redis = None
     async_engine = None
     pubsub_manager = None
+    mongodb_client = get_mongodb_client()
 
     try:
         redis = get_redis()
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.redis = redis
         app.state.db_connection = async_engine
         app.state.pubsub_manager = pubsub_manager
+        app.state.mongodb_client = mongodb_client
 
         logger.info("Application started successfully")
         yield

@@ -7,17 +7,18 @@ import asyncio
 import time
 
 from src.config import settings
+from src.infrastructure.mongodb.client import get_mongodb_client_singleton
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.infrastructure.database.exceptions import DatabaseConnectionError
 from src.logger import get_logger
 from src.application.services.log_service import LogService
 from src.infrastructure.mongodb.repositories.log_repository import LogRepository
-from src.infrastructure.mongodb.client import mongodb_client
 
 logger = get_logger(__name__)
 
 
 def _log_query_async(query: str, execution_time_ms: float, status: str, details: dict | None = None) -> None:
+    mongodb_client = get_mongodb_client_singleton()
     if mongodb_client.db is not None:
         log_service = LogService(LogRepository(mongodb_client.db.logs))
         asyncio.create_task(

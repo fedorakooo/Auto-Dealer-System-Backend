@@ -4,6 +4,7 @@ from fastapi import Depends
 
 from src.api.dependencies.auth import get_password_handler, get_token_handler
 from src.api.dependencies.database import get_unit_of_work
+from src.api.dependencies.mongodb import get_mongodb_client
 from src.api.dependencies.pubsub import get_pubsub_manager
 from src.api.dependencies.redis import get_redis_client, get_session_repository
 from src.api.dependencies.s3 import get_s3_client
@@ -25,8 +26,6 @@ from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.services.auth_service import AuthService
 from src.application.services.city_service import CityService
 from src.application.services.log_service import LogService
-from src.infrastructure.mongodb.repositories.log_repository import LogRepository
-from src.infrastructure.mongodb.client import mongodb_client
 from src.application.services.custom_order_service import CustomOrderService
 from src.application.services.customer_service import CustomerService
 from src.application.services.dealership_service import DealershipService
@@ -47,6 +46,12 @@ from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.abstractions.redis.redis_client import IRedisClient
 from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.domain.abstractions.s3.s3_client import IS3Client
+from src.infrastructure.mongodb.client import MongoDBClient
+from src.infrastructure.mongodb.repositories.log_repository import LogRepository
+
+
+def create_log_service(mongodb_client: MongoDBClient) -> LogService:
+    return LogService(log_repository=LogRepository(mongodb_client.db.logs))
 
 
 def get_auth_service(
@@ -165,5 +170,5 @@ def get_favorite_service(
 
 
 def get_log_service() -> LogService:
-    log_repository = LogRepository(mongodb_client.db.logs)
-    return LogService(log_repository=log_repository)
+    mongodb_client = get_mongodb_client()
+    return create_log_service(mongodb_client)

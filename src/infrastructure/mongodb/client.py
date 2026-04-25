@@ -1,4 +1,5 @@
 import asyncio
+from functools import lru_cache
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,8 +20,7 @@ class MongoDBClient:
             self.client = AsyncIOMotorClient(settings.mongo_settings.url)
             self.db = self.client[settings.mongo_settings.MONGO_DB]
 
-            # Setup TTL index for the logs collection to delete old logs
-            # TTL: 90 days = 7776000 seconds
+            # setup ttl index for the logs collection to delete old logs (90 days = 7776000 sec)
             await self.db.logs.create_index("timestamp", expireAfterSeconds=7776000)
             
             # Create indexes for faster search and filtering
@@ -38,4 +38,7 @@ class MongoDBClient:
             logger.info("MongoDB connection closed.")
 
 
-mongodb_client = MongoDBClient()
+@lru_cache(maxsize=1)
+def get_mongodb_client_singleton() -> MongoDBClient:
+    return MongoDBClient()
+

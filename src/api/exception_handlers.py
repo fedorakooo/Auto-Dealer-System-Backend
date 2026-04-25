@@ -13,8 +13,8 @@ from src.infrastructure.database.exceptions import (
     DatabaseUniqueViolationError,
 )
 from src.logger import get_logger
-from src.api.dependencies.services import get_log_service
-from src.infrastructure.mongodb.client import mongodb_client
+from src.api.dependencies.services import create_log_service
+from src.api.dependencies.mongodb import get_mongodb_client
 import traceback
 import asyncio
 
@@ -22,9 +22,10 @@ logger = get_logger(__name__)
 
 
 def _log_error_async(request: Request, exc: Exception, status_code: int) -> None:
+    mongodb_client = get_mongodb_client(request)
     if mongodb_client.db is not None:
         try:
-            log_service = get_log_service()
+            log_service = create_log_service(mongodb_client)
             path = request.url.path
             tb = traceback.format_exc() if isinstance(exc, Exception) else None
             user_id = getattr(request.state, "user_id", None)
