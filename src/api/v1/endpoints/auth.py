@@ -99,3 +99,21 @@ async def auth_refresh(
     token_info = await auth_service.refresh_token(refresh_dto)
     logger.debug("Token refreshed successfully")
     return TokenResponse.from_dto(token_info)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Invalid token"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Unexpected server error"},
+    },
+)
+async def logout(
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    refresh_token: str = Form(..., description="The refresh token to invalidate"),
+) -> None:
+    logger.info("Logout attempt")
+    await auth_service.logout(refresh_token)
+    logger.info("Logout successful")
+

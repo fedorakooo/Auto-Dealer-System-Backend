@@ -27,3 +27,13 @@ class IRedisClient(ABC):
     async def delete(self, key: str) -> bool:
         """Removes the specified key. Returns True if key was removed."""
         pass
+
+    @abstractmethod
+    async def incr(self, key: str) -> int:
+        """Increments the number stored at key by one. Returns the value of key after the increment."""
+        pass
+
+    @abstractmethod
+    async def expire(self, key: str, time: int) -> bool:
+        """Sets a timeout on key. Returns True if timeout was set."""
+        pass

@@ -39,7 +39,19 @@ class VehicleRepository(IVehicleRepository):
         min_price = Decimal(str(vehicle_filter.min_price)) if vehicle_filter.min_price is not None else None
         max_price = Decimal(str(vehicle_filter.max_price)) if vehicle_filter.max_price is not None else None
 
-        query = "SELECT * FROM get_vehicles_filtered($1::UUID, $2, $3, $4::DECIMAL, $5::DECIMAL, $6, $7, $8, $9)"
+        query = """
+            SELECT * FROM get_vehicles_filtered(
+                $1::UUID,
+                $2::INTEGER,
+                $3::BOOLEAN,
+                $4::DECIMAL,
+                $5::DECIMAL,
+                $6::VARCHAR,
+                $7::VARCHAR,
+                $8::INTEGER,
+                $9::INTEGER
+            )
+        """
         rows = await self._db.fetch(
             query,
             str(model_id_uuid) if model_id_uuid else None,
@@ -53,7 +65,15 @@ class VehicleRepository(IVehicleRepository):
             vehicle_filter.limit,
         )
 
-        count_query = "SELECT count_vehicles_filtered($1::UUID, $2, $3, $4::DECIMAL, $5::DECIMAL)"
+        count_query = """
+            SELECT count_vehicles_filtered(
+                $1::UUID,
+                $2::INTEGER,
+                $3::BOOLEAN,
+                $4::DECIMAL,
+                $5::DECIMAL
+            )
+        """
         total = await self._db.fetchval(
             count_query,
             str(model_id_uuid) if model_id_uuid else None,

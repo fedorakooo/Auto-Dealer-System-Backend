@@ -13,8 +13,39 @@ from src.infrastructure.database.exceptions import (
     DatabaseUniqueViolationError,
 )
 from src.logger import get_logger
+from src.api.dependencies.services import create_log_service
+from src.api.dependencies.mongodb import get_mongodb_client
+import traceback
+import asyncio
 
 logger = get_logger(__name__)
+
+
+def _log_error_async(request: Request, exc: Exception, status_code: int) -> None:
+    mongodb_client = get_mongodb_client(request)
+    if mongodb_client.db is not None:
+        try:
+            log_service = create_log_service(mongodb_client)
+            path = request.url.path
+            tb = traceback.format_exc() if isinstance(exc, Exception) else None
+            user_id = getattr(request.state, "user_id", None)
+            
+            # RequestValidationError is slightly different
+            message = str(exc)
+            if hasattr(exc, "errors") and callable(exc.errors):
+                message = str(exc.errors())
+                
+            asyncio.create_task(
+                log_service.log_error(
+                    error_type=type(exc).__name__,
+                    message=message,
+                    traceback=tb,
+                    path=path,
+                    user_id=user_id,
+                )
+            )
+        except Exception:
+            pass
 
 
 def exception_container(app: FastAPI) -> None:
@@ -52,6 +83,7 @@ def exception_container(app: FastAPI) -> None:
 
     @app.exception_handler(ForbiddenError)
     async def forbidden_exception_handler(request: Request, exc: ForbiddenError):
+        _log_error_async(request, exc, status.HTTP_403_FORBIDDEN)
         logger.warning(f"Forbidden access: {str(exc)}")
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -60,6 +92,7 @@ def exception_container(app: FastAPI) -> None:
 
     @app.exception_handler(BusinessError)
     def business_error_handler(request: Request, exc: BusinessError):
+        _log_error_async(request, exc, status.HTTP_400_BAD_REQUEST)
         logger.warning(f"Business error: {str(exc)}")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -100,6 +133,7 @@ def exception_container(app: FastAPI) -> None:
 
     @app.exception_handler(DatabaseError)
     def database_error_handler(request: Request, exc: DatabaseError):
+        _log_error_async(request, exc, status.HTTP_500_INTERNAL_SERVER_ERROR)
         logger.error(f"Database error: {str(exc)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -108,6 +142,7 @@ def exception_container(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def server_exception_handler(request: Request, exc: Exception):
+        _log_error_async(request, exc, status.HTTP_500_INTERNAL_SERVER_ERROR)
         logger.error(f"Unexpected server error: {str(exc)}", exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

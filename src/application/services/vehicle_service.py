@@ -6,17 +6,25 @@ from src.application.dtos.vehicle_dto import VehicleCreateDTO, VehicleDTO, Vehic
 from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
 from src.application.mappers.vehicle_mapper import VehicleMapper
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.value_objects.filters import VehicleFilter
 from src.domain.value_objects.media_type import MediaType
+from src.config import settings
 from src.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class VehicleService(IVehicleService):
-    def __init__(self, uow: IUnitOfWork, model_media_service: IModelMediaService | None = None):
+    def __init__(
+        self,
+        uow: IUnitOfWork,
+        pubsub: IPubSubManager,
+        model_media_service: IModelMediaService | None = None,
+    ):
         self._uow = uow
         self._model_media_service = model_media_service
+        self._pubsub = pubsub
 
     async def create_vehicle(self, create_dto: VehicleCreateDTO) -> VehicleDTO:
         logger.debug(f"Creating vehicle with VIN: {create_dto.vin}, model_id: {create_dto.model_id}")
@@ -43,6 +51,11 @@ class VehicleService(IVehicleService):
             vehicle = VehicleMapper.from_create_dto_to_entity(create_dto)
             created_vehicle = await uow.vehicle_repository.create(vehicle)
             logger.info(f"Vehicle created successfully with id: {created_vehicle.id}, VIN: {create_dto.vin}")
+
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel,
+            {"entity": "vehicle", "action": "create", "id": str(created_vehicle.id)},
+        )
 
         return VehicleMapper.from_entity_to_dto(created_vehicle)
 
@@ -207,6 +220,10 @@ class VehicleService(IVehicleService):
             updated_vehicle = VehicleMapper.from_update_dto_to_entity(vehicle, update_dto)
             saved_vehicle = await uow.vehicle_repository.update(updated_vehicle)
 
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel, {"entity": "vehicle", "action": "update", "id": str(vehicle_id)}
+        )
+
         dto = VehicleMapper.from_entity_to_dto(saved_vehicle)
 
         # Load model media images if service is available
@@ -233,4 +250,9 @@ class VehicleService(IVehicleService):
                 raise NotFoundError("Vehicle", str(vehicle_id))
 
             result = await uow.vehicle_repository.delete(vehicle_id)
+            
+        await self._pubsub.publish(
+            settings.pubsub_settings.data_changes_channel, {"entity": "vehicle", "action": "delete", "id": str(vehicle_id)}
+        )
+
         return result

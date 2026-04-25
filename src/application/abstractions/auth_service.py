@@ -15,3 +15,8 @@ class IAuthService(ABC):
     async def refresh_token(self, refresh_dto: RefreshTokenDTO) -> TokenDTO:
         """Refresh access token using refresh token."""
         pass
+
+    @abstractmethod
+    async def logout(self, refresh_token: str) -> None:
+        """Invalidate the session associated with the refresh token."""
+        pass

@@ -6,8 +6,10 @@ from redis.asyncio import Redis
 from src.config import settings
 from src.domain.abstractions.redis.healthcheck import IRedisHealthCheck
 from src.domain.abstractions.redis.redis_client import IRedisClient
+from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.infrastructure.redis.client import RedisClient
 from src.infrastructure.redis.healthcheck import RedisHealthCheck
+from src.infrastructure.redis.repositories.session_repository import RedisSessionRepository
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -36,3 +38,9 @@ def get_redis_health_check(
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> IRedisHealthCheck:
     return RedisHealthCheck(redis_client)
+
+
+def get_session_repository(
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
+) -> ISessionRepository:
+    return RedisSessionRepository(redis_client)

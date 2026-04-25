@@ -38,7 +38,18 @@ class ModelRepository(IModelRepository):
         sort_by = model_filter.sort_by.value if model_filter.sort_by else "created_at"
         order_direction = model_filter.order_by.value.upper()
 
-        query = "SELECT * FROM get_models_filtered($1, $2, $3, $4, $5, $6, $7, $8)"
+        query = """
+            SELECT * FROM get_models_filtered(
+                $1::VARCHAR,
+                $2::BOOLEAN,
+                $3::INTEGER,
+                $4::INTEGER,
+                $5::VARCHAR,
+                $6::VARCHAR,
+                $7::INTEGER,
+                $8::INTEGER
+            )
+        """
         rows = await self._db.fetch(
             query,
             model_filter.name,

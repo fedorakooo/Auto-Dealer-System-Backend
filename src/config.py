@@ -125,6 +125,56 @@ class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+class PubSubSettings(BaseSettings):
+    """Redis Pub/Sub settings."""
+
+    DATA_CHANGES_CHANNEL: str = "system:data_changes"
+
+    @property
+    def data_changes_channel(self) -> str:
+        return self.DATA_CHANGES_CHANNEL
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+class MongoSettings(BaseSettings):
+    """MongoDB connection settings."""
+
+    MONGO_HOST: str = "localhost"
+    MONGO_PORT: str = "27017"
+    MONGO_USER: str = "admin"
+    MONGO_PASSWORD: str = "admin_pwd"
+    MONGO_DB: str = "audit_logs"
+
+    @property
+    def url(self) -> str:
+        return f"mongodb://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_HOST}:{self.MONGO_PORT}/"
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+class EmployeeSeedSettings(BaseSettings):
+    """Seed employee users from YAML at API startup."""
+
+    EMPLOYEES_FILE: str = "employees.yaml"
+
+    @property
+    def path(self) -> Path:
+        return Path(__file__).resolve().parent.parent / self.EMPLOYEES_FILE
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+class UserListSettings(BaseSettings):
+    """User list query constraints (e.g. SQL identifier whitelist)."""
+
+    @property
+    def sort_columns(self) -> frozenset[str]:
+        return frozenset({"created_at", "email", "first_name", "second_name"})
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
 class Settings(BaseSettings):
     """Application settings container."""
 
@@ -132,7 +182,11 @@ class Settings(BaseSettings):
     logger_settings: LoggerSettings = LoggerSettings()
     jwt_settings: JWTSettings = JWTSettings()
     redis_settings: RedisSettings = RedisSettings()
+    pubsub_settings: PubSubSettings = PubSubSettings()
     s3_settings: S3Settings = S3Settings()
+    mongo_settings: MongoSettings = MongoSettings()
+    employee_seed_settings: EmployeeSeedSettings = EmployeeSeedSettings()
+    user_list_settings: UserListSettings = UserListSettings()
 
     def __init__(self) -> None:
         super().__init__()

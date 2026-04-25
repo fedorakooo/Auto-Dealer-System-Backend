@@ -35,6 +35,7 @@ COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/pyproject.toml /app/poetry.lock ./
 COPY config.yaml ./config.yaml
+COPY employees.yaml ./employees.yaml
 COPY src ./src
 
 EXPOSE 8000

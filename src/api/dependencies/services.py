@@ -4,7 +4,9 @@ from fastapi import Depends
 
 from src.api.dependencies.auth import get_password_handler, get_token_handler
 from src.api.dependencies.database import get_unit_of_work
-from src.api.dependencies.redis import get_redis_client
+from src.api.dependencies.mongodb import get_mongodb_client
+from src.api.dependencies.pubsub import get_pubsub_manager
+from src.api.dependencies.redis import get_redis_client, get_session_repository
 from src.api.dependencies.s3 import get_s3_client
 from src.application.abstractions.auth_service import IAuthService
 from src.application.abstractions.city_service import ICityService
@@ -23,6 +25,7 @@ from src.application.abstractions.vehicle_media_service import IVehicleMediaServ
 from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.services.auth_service import AuthService
 from src.application.services.city_service import CityService
+from src.application.services.log_service import LogService
 from src.application.services.custom_order_service import CustomOrderService
 from src.application.services.customer_service import CustomerService
 from src.application.services.dealership_service import DealershipService
@@ -39,8 +42,16 @@ from src.application.services.vehicle_service import VehicleService
 from src.domain.abstractions.auth.password_handler import IPasswordHandler
 from src.domain.abstractions.auth.token_handler import ITokenHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
+from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.abstractions.redis.redis_client import IRedisClient
+from src.domain.abstractions.redis.session_repository import ISessionRepository
 from src.domain.abstractions.s3.s3_client import IS3Client
+from src.infrastructure.mongodb.client import MongoDBClient
+from src.infrastructure.mongodb.repositories.log_repository import LogRepository
+
+
+def create_log_service(mongodb_client: MongoDBClient) -> LogService:
+    return LogService(log_repository=LogRepository(mongodb_client.db.logs))
 
 
 def get_auth_service(
@@ -48,22 +59,28 @@ def get_auth_service(
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
     token_handler: Annotated[ITokenHandler, Depends(get_token_handler)],
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
+    session_repository: Annotated[ISessionRepository, Depends(get_session_repository)],
 ) -> IAuthService:
     return AuthService(
         uow=uow,
         password_handler=password_handler,
         token_handler=token_handler,
         redis_client=redis_client,
+        session_repository=session_repository,
     )
 
 
 def get_user_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
+    pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IUserService:
     return UserService(
         uow=uow,
         password_handler=password_handler,
+        redis_client=redis_client,
+        pubsub=pubsub,
     )
 
 
@@ -77,14 +94,16 @@ def get_model_media_service(
 def get_vehicle_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     model_media_service: Annotated[IModelMediaService | None, Depends(get_model_media_service)],
+    pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IVehicleService:
-    return VehicleService(uow=uow, model_media_service=model_media_service)
+    return VehicleService(uow=uow, pubsub=pubsub, model_media_service=model_media_service)
 
 
 def get_city_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> ICityService:
-    return CityService(uow=uow)
+    return CityService(uow=uow, redis_client=redis_client)
 
 
 def get_customer_service(
@@ -96,8 +115,9 @@ def get_customer_service(
 
 def get_dealership_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> IDealershipService:
-    return DealershipService(uow=uow)
+    return DealershipService(uow=uow, redis_client=redis_client)
 
 
 def get_feature_service(
@@ -147,3 +167,8 @@ def get_favorite_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IFavoriteService:
     return FavoriteService(uow=uow)
+
+
+def get_log_service() -> LogService:
+    mongodb_client = get_mongodb_client()
+    return create_log_service(mongodb_client)
