@@ -5,6 +5,7 @@ services:
     environment:
       - POSTGRES_HOST=database
       - REDIS_HOST=redis
+      - MONGO_HOST=mongodb
     ports:
       - "8000:8000"
     volumes:
@@ -13,6 +14,8 @@ services:
       database:
         condition: service_healthy
       redis:
+        condition: service_started
+      mongodb:
         condition: service_started
     networks:
       - app-network
@@ -52,7 +55,7 @@ services:
       - REDIS_USER=${REDIS_USER}
       - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
     ports:
-      - "6380:6379"
+      - "6379:6379"
     command: >
       sh -c '
         mkdir -p /usr/local/etc/redis &&
@@ -60,7 +63,7 @@ services:
         echo "requirepass $REDIS_PASSWORD" >> /usr/local/etc/redis/redis.conf &&
         echo "appendonly yes" >> /usr/local/etc/redis/redis.conf &&
         echo "appendfsync everysec" >> /usr/local/etc/redis/redis.conf &&
-        echo "user $REDIS_USER on >$REDIS_USER_PASSWORD ~* &* +@all" > /usr/local/etc/redis/users.acl &&
+        echo "user $REDIS_USER on >$REDIS_USER_PASSWORD ~* +@all" > /usr/local/etc/redis/users.acl &&
         redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl
       '
     volumes:
