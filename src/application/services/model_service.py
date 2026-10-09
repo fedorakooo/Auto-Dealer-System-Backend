@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from src.application.abstractions.model_media_service import IModelMediaService
 from src.application.abstractions.model_service import IModelService
 from src.application.dtos.model_dto import ModelCreateDTO, ModelDTO, ModelUpdateDTO
 from src.application.exceptions.errors import NotFoundError, ValidationError
@@ -9,8 +10,9 @@ from src.domain.value_objects.filters import ModelFilter
 
 
 class ModelService(IModelService):
-    def __init__(self, uow: IUnitOfWork):
+    def __init__(self, uow: IUnitOfWork, model_media_service: IModelMediaService | None = None):
         self._uow = uow
+        self._model_media_service = model_media_service
 
     async def create_model(self, create_dto: ModelCreateDTO) -> ModelDTO:
         async with self._uow as uow:
@@ -82,5 +84,9 @@ class ModelService(IModelService):
             if not model:
                 raise NotFoundError("Model", str(model_id))
 
+        if self._model_media_service:
+            await self._model_media_service.delete_all_model_media(model_id)
+
+        async with self._uow as uow:
             result = await uow.model_repository.delete(model_id)
         return result

@@ -60,8 +60,7 @@ class VehicleMediaService(IVehicleMediaService):
                 raise NotFoundError("VehicleMedia", str(media_id))
 
             if self._s3_client and vehicle_media.url:
-                key = vehicle_media.url.split("/")[-1] if "/" in vehicle_media.url else vehicle_media.url
-                await self._s3_client.delete_file(key)
+                await self._s3_client.delete_file(vehicle_media.url)
 
             result = await uow.vehicle_media_repository.delete(media_id)
         return result
@@ -76,8 +75,7 @@ class VehicleMediaService(IVehicleMediaService):
             if self._s3_client:
                 for media in media_list:
                     if media.url:
-                        key = media.url.split("/")[-1] if "/" in media.url else media.url
-                        await self._s3_client.delete_file(key)
+                        await self._s3_client.delete_file(media.url)
 
             count = await uow.vehicle_media_repository.delete_by_vehicle_id(vehicle_id)
         return count
@@ -126,4 +124,5 @@ class VehicleMediaService(IVehicleMediaService):
             if not vehicle_media:
                 raise NotFoundError("VehicleMedia", str(media_id))
 
-        return await self._s3_client.get_file(vehicle_media.url)
+        body, _ = await self._s3_client.get_file(vehicle_media.url)
+        return body

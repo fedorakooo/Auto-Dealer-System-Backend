@@ -5,11 +5,11 @@ from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.dtos.vehicle_dto import VehicleCreateDTO, VehicleDTO, VehicleUpdateDTO
 from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
 from src.application.mappers.vehicle_mapper import VehicleMapper
+from src.config import settings
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.pubsub.manager import IPubSubManager
 from src.domain.value_objects.filters import VehicleFilter
 from src.domain.value_objects.media_type import MediaType
-from src.config import settings
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -221,7 +221,8 @@ class VehicleService(IVehicleService):
             saved_vehicle = await uow.vehicle_repository.update(updated_vehicle)
 
         await self._pubsub.publish(
-            settings.pubsub_settings.data_changes_channel, {"entity": "vehicle", "action": "update", "id": str(vehicle_id)}
+            settings.pubsub_settings.data_changes_channel,
+            {"entity": "vehicle", "action": "update", "id": str(vehicle_id)},
         )
 
         dto = VehicleMapper.from_entity_to_dto(saved_vehicle)
@@ -250,9 +251,10 @@ class VehicleService(IVehicleService):
                 raise NotFoundError("Vehicle", str(vehicle_id))
 
             result = await uow.vehicle_repository.delete(vehicle_id)
-            
+
         await self._pubsub.publish(
-            settings.pubsub_settings.data_changes_channel, {"entity": "vehicle", "action": "delete", "id": str(vehicle_id)}
+            settings.pubsub_settings.data_changes_channel,
+            {"entity": "vehicle", "action": "delete", "id": str(vehicle_id)},
         )
 
         return result
