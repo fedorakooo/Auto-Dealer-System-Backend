@@ -1,8 +1,13 @@
+import asyncio
+import traceback
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.application.exceptions.errors import BusinessError, NotFoundError
+from src.api.dependencies.mongodb import get_mongodb_client
+from src.api.dependencies.services import create_log_service
+from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
 from src.domain.exceptions.auth_errors import ForbiddenError, LoginError
 from src.domain.exceptions.health_check_errors import HealthCheckError
 from src.domain.exceptions.token_errors import TokenError
@@ -13,10 +18,6 @@ from src.infrastructure.database.exceptions import (
     DatabaseUniqueViolationError,
 )
 from src.logger import get_logger
-from src.api.dependencies.services import create_log_service
-from src.api.dependencies.mongodb import get_mongodb_client
-import traceback
-import asyncio
 
 logger = get_logger(__name__)
 
@@ -29,12 +30,12 @@ def _log_error_async(request: Request, exc: Exception, status_code: int) -> None
             path = request.url.path
             tb = traceback.format_exc() if isinstance(exc, Exception) else None
             user_id = getattr(request.state, "user_id", None)
-            
+
             # RequestValidationError is slightly different
             message = str(exc)
             if hasattr(exc, "errors") and callable(exc.errors):
                 message = str(exc.errors())
-                
+
             asyncio.create_task(
                 log_service.log_error(
                     error_type=type(exc).__name__,
@@ -87,6 +88,14 @@ def exception_container(app: FastAPI) -> None:
         logger.warning(f"Forbidden access: {str(exc)}")
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(ValidationError)
+    def application_validation_error_handler(request: Request, exc: ValidationError):
+        logger.warning(f"Validation error: {str(exc)}")
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(exc)},
         )
 

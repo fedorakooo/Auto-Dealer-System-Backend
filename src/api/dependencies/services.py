@@ -17,6 +17,7 @@ from src.application.abstractions.favorite_service import IFavoriteService
 from src.application.abstractions.feature_service import IFeatureService
 from src.application.abstractions.model_media_service import IModelMediaService
 from src.application.abstractions.model_service import IModelService
+from src.application.abstractions.operations_service import IOperationsService
 from src.application.abstractions.order_service import IOrderService
 from src.application.abstractions.review_service import IReviewService
 from src.application.abstractions.testdrive_service import ITestDriveService
@@ -25,14 +26,15 @@ from src.application.abstractions.vehicle_media_service import IVehicleMediaServ
 from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.services.auth_service import AuthService
 from src.application.services.city_service import CityService
-from src.application.services.log_service import LogService
 from src.application.services.custom_order_service import CustomOrderService
 from src.application.services.customer_service import CustomerService
 from src.application.services.dealership_service import DealershipService
 from src.application.services.favorite_service import FavoriteService
 from src.application.services.feature_service import FeatureService
+from src.application.services.log_service import LogService
 from src.application.services.model_media_service import ModelMediaService
 from src.application.services.model_service import ModelService
+from src.application.services.operations_service import OperationsService
 from src.application.services.order_service import OrderService
 from src.application.services.review_service import ReviewService
 from src.application.services.testdrive_service import TestDriveService
@@ -128,14 +130,21 @@ def get_feature_service(
 
 def get_model_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    model_media_service: Annotated[IModelMediaService, Depends(get_model_media_service)],
 ) -> IModelService:
-    return ModelService(uow=uow)
+    return ModelService(uow=uow, model_media_service=model_media_service)
 
 
 def get_order_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IOrderService:
     return OrderService(uow=uow)
+
+
+def get_operations_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+) -> IOperationsService:
+    return OperationsService(uow=uow)
 
 
 def get_custom_order_service(

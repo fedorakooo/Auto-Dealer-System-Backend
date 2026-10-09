@@ -116,4 +116,3 @@ async def logout(
     logger.info("Logout attempt")
     await auth_service.logout(refresh_token)
     logger.info("Logout successful")
-

@@ -42,7 +42,7 @@ async def create_feature(
 
 
 @router.get(
-    "/{feature_id}",
+    "/{feature_id:int}",
     response_model=FeatureResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Feature not found"},
@@ -102,7 +102,7 @@ async def get_features_by_custom_order(
 
 
 @router.patch(
-    "/{feature_id}",
+    "/{feature_id:int}",
     response_model=FeatureResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -123,7 +123,7 @@ async def update_feature(
 
 
 @router.delete(
-    "/{feature_id}",
+    "/{feature_id:int}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

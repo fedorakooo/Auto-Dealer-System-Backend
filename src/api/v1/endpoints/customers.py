@@ -40,7 +40,7 @@ async def create_customer(
 
 
 @router.get(
-    "/{customer_id}",
+    "/{customer_id:uuid}",
     response_model=CustomerResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -80,7 +80,7 @@ async def get_customer_by_user_id(
 
 
 @router.patch(
-    "/{customer_id}",
+    "/{customer_id:uuid}",
     response_model=CustomerResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -101,7 +101,7 @@ async def update_customer(
 
 
 @router.delete(
-    "/{customer_id}",
+    "/{customer_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

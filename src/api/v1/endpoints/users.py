@@ -43,7 +43,7 @@ async def create_user(
 
 
 @router.get(
-    "/{user_id}",
+    "/{user_id:uuid}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     responses={
@@ -104,7 +104,7 @@ async def list_users(
 
 
 @router.patch(
-    "/{user_id}",
+    "/{user_id:uuid}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     responses={
@@ -129,7 +129,7 @@ async def update_user(
 
 
 @router.delete(
-    "/{user_id}",
+    "/{user_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
