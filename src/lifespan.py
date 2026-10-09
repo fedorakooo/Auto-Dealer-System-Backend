@@ -11,9 +11,12 @@ from src.api.dependencies.redis import get_redis
 from src.application.handlers.data_change_handler import DataChangeCacheHandler
 from src.application.utils.cache_manager import CacheManager
 from src.config import settings
+from src.infrastructure.database.migrations import migrate
+from src.infrastructure.outbox_worker import OutboxWorker
 from src.infrastructure.pubsub.redis_pubsub import RedisPubSubManager
 from src.infrastructure.redis.client import RedisClient
 from src.infrastructure.startup.employee_seed import seed_employees_if_missing
+from src.infrastructure.startup.s3_bootstrap import ensure_s3_bucket
 from src.logger import get_logger, setup_logging
 
 
@@ -27,6 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async_engine = None
     pubsub_manager = None
     mongodb_client = get_mongodb_client()
+    outbox_worker = None
 
     try:
         redis = get_redis()
@@ -35,7 +39,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async_engine = await get_async_engine()
         logger.debug("Database engine initialized")
 
+        if settings.postgres_settings.POSTGRES_MIGRATE_ON_START:
+            migration_connection = await async_engine.acquire()
+            try:
+                applied_versions = await migrate(migration_connection)
+                if applied_versions:
+                    logger.info("Applied database migrations: %s", applied_versions)
+            finally:
+                await async_engine.release(migration_connection)
+
         await seed_employees_if_missing(async_engine, settings.employee_seed_settings.path)
+
+        await ensure_s3_bucket(settings.s3_settings)
 
         await mongodb_client.connect()
         logger.debug("MongoDB client initialized")
@@ -48,6 +63,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await pubsub_manager.connect()
         await pubsub_manager.subscribe(settings.pubsub_settings.data_changes_channel, data_change_handler.handle)
         logger.debug("Pub/Sub manager initialized and subscribed")
+
+        if settings.pubsub_settings.OUTBOX_ENABLED:
+            outbox_worker = OutboxWorker(async_engine, pubsub_manager)
+            outbox_worker.start()
 
         app.state.redis_client = redis_client
         app.state.redis = redis
@@ -71,6 +90,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.debug("Database connection closed")
 
         if pubsub_manager:
+            if outbox_worker:
+                await outbox_worker.stop()
             await pubsub_manager.disconnect()
             logger.debug("Pub/Sub manager disconnected")
 
