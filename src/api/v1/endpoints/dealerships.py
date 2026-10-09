@@ -39,7 +39,7 @@ async def create_dealership(
 
 
 @router.get(
-    "/{dealership_id}",
+    "/{dealership_id:int}",
     response_model=DealershipResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Dealership not found"},
@@ -118,7 +118,7 @@ async def get_dealerships_by_country(
 
 
 @router.patch(
-    "/{dealership_id}",
+    "/{dealership_id:int}",
     response_model=DealershipResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -140,7 +140,7 @@ async def update_dealership(
 
 
 @router.delete(
-    "/{dealership_id}",
+    "/{dealership_id:int}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

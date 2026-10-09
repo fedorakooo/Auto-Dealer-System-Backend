@@ -42,7 +42,7 @@ async def create_custom_order(
 
 
 @router.get(
-    "/{custom_order_id}",
+    "/{custom_order_id:uuid}",
     response_model=CustomOrderResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -100,7 +100,7 @@ async def get_custom_orders_by_dealership(
 
 
 @router.patch(
-    "/{custom_order_id}",
+    "/{custom_order_id:uuid}",
     response_model=CustomOrderResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -124,7 +124,7 @@ async def update_custom_order(
 
 
 @router.patch(
-    "/{custom_order_id}/status",
+    "/{custom_order_id:uuid}/status",
     response_model=CustomOrderResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -147,7 +147,7 @@ async def update_custom_order_status(
 
 
 @router.delete(
-    "/{custom_order_id}",
+    "/{custom_order_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

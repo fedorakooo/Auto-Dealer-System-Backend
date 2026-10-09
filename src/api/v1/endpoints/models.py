@@ -42,7 +42,7 @@ async def create_model(
 
 
 @router.get(
-    "/{model_id}",
+    "/{model_id:uuid}",
     response_model=ModelResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Model not found"},
@@ -93,7 +93,7 @@ async def list_models(
 
 
 @router.patch(
-    "/{model_id}",
+    "/{model_id:uuid}",
     response_model=ModelResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -115,7 +115,7 @@ async def update_model(
 
 
 @router.delete(
-    "/{model_id}",
+    "/{model_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

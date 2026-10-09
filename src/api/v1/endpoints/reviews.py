@@ -41,7 +41,7 @@ async def create_review(
 
 
 @router.get(
-    "/{review_id}",
+    "/{review_id:uuid}",
     response_model=ReviewResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Review not found"},
@@ -87,7 +87,7 @@ async def get_reviews_by_customer(
 
 
 @router.patch(
-    "/{review_id}",
+    "/{review_id:uuid}",
     response_model=ReviewResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -109,7 +109,7 @@ async def update_review(
 
 
 @router.delete(
-    "/{review_id}",
+    "/{review_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

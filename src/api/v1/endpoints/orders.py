@@ -48,7 +48,7 @@ async def create_order(
 
 
 @router.get(
-    "/{order_id}",
+    "/{order_id:uuid}",
     response_model=OrderResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -165,7 +165,7 @@ async def get_orders_by_dealership(
 
 
 @router.patch(
-    "/{order_id}",
+    "/{order_id:uuid}",
     response_model=OrderResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -186,7 +186,7 @@ async def update_order(
 
 
 @router.patch(
-    "/{order_id}/status",
+    "/{order_id:uuid}/status",
     response_model=OrderResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Invalid status transition"},
@@ -207,7 +207,7 @@ async def update_order_status(
 
 
 @router.delete(
-    "/{order_id}",
+    "/{order_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

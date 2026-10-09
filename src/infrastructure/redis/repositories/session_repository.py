@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from src.domain.abstractions.redis.redis_client import IRedisClient
@@ -35,7 +34,7 @@ class RedisSessionRepository(ISessionRepository):
         except Exception as exc:
             logger.error(f"Failed to save session {session.id}: {exc}", exc_info=True)
 
-    async def get_by_id(self, session_id: UUID) -> Optional[UserSession]:
+    async def get_by_id(self, session_id: UUID) -> UserSession | None:
         key = self._get_key(session_id)
         try:
             data_str = await self.redis.get(key)

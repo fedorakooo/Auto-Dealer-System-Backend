@@ -1,18 +1,17 @@
+import asyncio
+import time
 from typing import Any
 
 import asyncpg
 from asyncpg import Connection, Pool
 
-import asyncio
-import time
-
+from src.application.services.log_service import LogService
 from src.config import settings
-from src.infrastructure.mongodb.client import get_mongodb_client_singleton
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.infrastructure.database.exceptions import DatabaseConnectionError
-from src.logger import get_logger
-from src.application.services.log_service import LogService
+from src.infrastructure.mongodb.client import get_mongodb_client_singleton
 from src.infrastructure.mongodb.repositories.log_repository import LogRepository
+from src.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -56,8 +55,13 @@ class DatabaseConnection(IDatabaseConnection):
                 user=settings.postgres_settings.POSTGRES_USER,
                 password=settings.postgres_settings.POSTGRES_PASSWORD,
                 database=settings.postgres_settings.POSTGRES_NAME,
-                min_size=1,
-                max_size=10,
+                min_size=settings.postgres_settings.POSTGRES_POOL_MIN_SIZE,
+                max_size=settings.postgres_settings.POSTGRES_POOL_MAX_SIZE,
+                command_timeout=settings.postgres_settings.POSTGRES_COMMAND_TIMEOUT,
+                max_queries=settings.postgres_settings.POSTGRES_MAX_QUERIES,
+                max_inactive_connection_lifetime=(
+                    settings.postgres_settings.POSTGRES_MAX_INACTIVE_CONNECTION_LIFETIME
+                ),
             )
             logger.info("Database connection pool created successfully")
         except Exception as exc:
@@ -74,7 +78,7 @@ class DatabaseConnection(IDatabaseConnection):
     async def acquire(self) -> Connection:
         if not self._pool:
             raise DatabaseConnectionError("Database pool is not initialized")
-        return await self._pool.acquire()
+        return await self._pool.acquire(timeout=settings.postgres_settings.POSTGRES_ACQUIRE_TIMEOUT)
 
     async def release(self, connection: Connection) -> None:
         if self._pool:
@@ -95,8 +99,7 @@ class DatabaseConnection(IDatabaseConnection):
             raise
         finally:
             exec_time = (time.perf_counter() - start_time) * 1000
-            args_str = [str(a) for a in args]
-            _log_query_async(query, exec_time, status, {"args": args_str})
+            _log_query_async(query, exec_time, status, {"parameter_count": len(args)})
 
     async def fetch(self, query: str, *args) -> list[asyncpg.Record]:
         start_time = time.perf_counter()
@@ -113,8 +116,7 @@ class DatabaseConnection(IDatabaseConnection):
             raise
         finally:
             exec_time = (time.perf_counter() - start_time) * 1000
-            args_str = [str(a) for a in args]
-            _log_query_async(query, exec_time, status, {"args": args_str})
+            _log_query_async(query, exec_time, status, {"parameter_count": len(args)})
 
     async def fetchrow(self, query: str, *args) -> asyncpg.Record | None:
         start_time = time.perf_counter()
@@ -131,8 +133,7 @@ class DatabaseConnection(IDatabaseConnection):
             raise
         finally:
             exec_time = (time.perf_counter() - start_time) * 1000
-            args_str = [str(a) for a in args]
-            _log_query_async(query, exec_time, status, {"args": args_str})
+            _log_query_async(query, exec_time, status, {"parameter_count": len(args)})
 
     async def fetchval(self, query: str, *args) -> Any:
         start_time = time.perf_counter()
@@ -149,8 +150,7 @@ class DatabaseConnection(IDatabaseConnection):
             raise
         finally:
             exec_time = (time.perf_counter() - start_time) * 1000
-            args_str = [str(a) for a in args]
-            _log_query_async(query, exec_time, status, {"args": args_str})
+            _log_query_async(query, exec_time, status, {"parameter_count": len(args)})
 
     @property
     def is_connected(self) -> bool:

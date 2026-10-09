@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 from uuid import UUID
 
 from src.domain.entities.session import UserSession
@@ -14,7 +13,7 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, session_id: UUID) -> Optional[UserSession]:
+    async def get_by_id(self, session_id: UUID) -> UserSession | None:
         """Retrieve a session by its unique ID."""
         pass
 

@@ -43,7 +43,7 @@ class CityService(ICityService):
             city = await uow.city_repository.get_by_id(city_id)
             if not city:
                 raise NotFoundError("City", str(city_id))
-        
+
         dto = CityMapper.from_entity_to_dto(city)
         await self._cache.set_cached(cache_key, dto, CityDTO, ttl=86400)
         return dto
@@ -56,7 +56,7 @@ class CityService(ICityService):
 
         async with self._uow as uow:
             cities = await uow.city_repository.get_all()
-        
+
         result = [CityMapper.from_entity_to_dto(city) for city in cities]
         await self._cache.set_cached(cache_key, result, list[CityDTO], ttl=86400)
         return result
@@ -88,6 +88,6 @@ class CityService(ICityService):
                 raise NotFoundError("City", str(city_id))
 
             result = await uow.city_repository.delete(city_id)
-        
+
         await self._invalidate_cache(city_id)
         return result

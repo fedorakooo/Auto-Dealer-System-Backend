@@ -81,9 +81,9 @@ class CurrentUserProvider:
         # Fetch user from database
         cache_key = f"user:session:{user_id}"
         cached_user = await self.cache_manager.get_cached(cache_key, User)
-        
+
         token_is_active = payload.get("is_active")
-        
+
         if cached_user:
             logger.debug(f"Current user retrieved from cache: {cached_user.email} (id: {cached_user.id})")
             if token_is_active is not None and not token_is_active:
@@ -109,7 +109,7 @@ class CurrentUserProvider:
             if not user.is_active:
                 logger.warning(f"User is inactive in database: {user.email}")
                 raise UserBlockedError(email=user.email)
-                
+
             await self.cache_manager.set_cached(cache_key, user, User, ttl=900)
 
         logger.debug(f"Current user retrieved successfully: {user.email} (id: {user.id})")

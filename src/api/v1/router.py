@@ -11,13 +11,15 @@ from src.api.v1.endpoints import (
     favorites,
     features,
     health,
+    logs,
+    model_media,
     models,
+    operations,
     orders,
     reviews,
     testdrives,
     users,
     vehicles,
-    logs,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -29,6 +31,7 @@ router.include_router(customers.router)
 router.include_router(cities.router)
 router.include_router(dealerships.router)
 router.include_router(models.router)
+router.include_router(model_media.router)
 router.include_router(features.router)
 router.include_router(vehicles.router)
 router.include_router(orders.router)
@@ -37,3 +40,4 @@ router.include_router(reviews.router)
 router.include_router(testdrives.router)
 router.include_router(favorites.router)
 router.include_router(logs.router)
+router.include_router(operations.router)

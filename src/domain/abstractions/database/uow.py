@@ -9,6 +9,7 @@ from src.domain.abstractions.database.repositories.favorite_repository import IF
 from src.domain.abstractions.database.repositories.feature_repository import IFeatureRepository
 from src.domain.abstractions.database.repositories.model_media_repository import IModelMediaRepository
 from src.domain.abstractions.database.repositories.model_repository import IModelRepository
+from src.domain.abstractions.database.repositories.operations_repository import IOperationsRepository
 from src.domain.abstractions.database.repositories.order_repository import IOrderRepository
 from src.domain.abstractions.database.repositories.review_repository import IReviewRepository
 from src.domain.abstractions.database.repositories.testdrive_repository import ITestDriveRepository
@@ -135,4 +136,10 @@ class IUnitOfWork(ABC):
     @abstractmethod
     def favorite_repository(self) -> IFavoriteRepository:
         """Returns the favorite repository."""
+        pass
+
+    @property
+    @abstractmethod
+    def operations_repository(self) -> IOperationsRepository:
+        """Returns the repository for extended database operations."""
         pass

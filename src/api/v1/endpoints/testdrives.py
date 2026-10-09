@@ -42,7 +42,7 @@ async def create_test_drive(
 
 
 @router.get(
-    "/{test_drive_id}",
+    "/{test_drive_id:uuid}",
     response_model=TestDriveResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -119,7 +119,7 @@ async def get_test_drives_by_vehicle(
 
 
 @router.patch(
-    "/{test_drive_id}",
+    "/{test_drive_id:uuid}",
     response_model=TestDriveResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -141,7 +141,7 @@ async def update_test_drive(
 
 
 @router.patch(
-    "/{test_drive_id}/status",
+    "/{test_drive_id:uuid}/status",
     response_model=TestDriveResponse,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
@@ -164,7 +164,7 @@ async def update_test_drive_status(
 
 
 @router.delete(
-    "/{test_drive_id}",
+    "/{test_drive_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

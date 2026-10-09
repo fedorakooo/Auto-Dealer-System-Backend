@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -14,7 +14,7 @@ class LogEventType(str, Enum):
 class AuditLog(BaseModel):
     id: str | None = Field(default=None, alias="_id")
     event_type: LogEventType
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class UserActionLog(AuditLog):

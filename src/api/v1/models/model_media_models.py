@@ -47,6 +47,7 @@ class ModelMediaResponse(BaseModel):
     id: UUID
     model_id: UUID
     url: str
+    file_url: str
     media_type: MediaType
     description: str | None = None
     sort_order: int = 0
@@ -58,6 +59,7 @@ class ModelMediaResponse(BaseModel):
             id=media.id,
             model_id=media.model_id,
             url=media.url,
+            file_url=f"/api/v1/model-media/{media.id}/file",
             media_type=media.media_type,
             description=media.description,
             sort_order=media.sort_order,

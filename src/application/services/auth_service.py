@@ -10,11 +10,11 @@ from src.domain.abstractions.auth.token_handler import ITokenHandler
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.redis.redis_client import IRedisClient
 from src.domain.abstractions.redis.session_repository import ISessionRepository
+from src.domain.entities.session import UserSession
 from src.domain.exceptions.auth_errors import InvalidCredentialsError
 from src.domain.exceptions.token_errors import InvalidTokenError
 from src.domain.exceptions.user_errors import UserBlockedError, UserInactiveError
 from src.domain.value_objects.auth_type import TokenType
-from src.domain.entities.session import UserSession
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -74,7 +74,13 @@ class AuthService(IAuthService):
         logger.debug(f"Generating tokens for user id: {user.id}")
         session_id = uuid4()
         expires_at = datetime.now() + timedelta(minutes=settings.jwt_settings.refresh_token_expire_minutes)
-        session = UserSession(id=session_id, user_id=user.id, created_at=datetime.now(), expires_at=expires_at, is_active=True)
+        session = UserSession(
+            id=session_id,
+            user_id=user.id,
+            created_at=datetime.now(),
+            expires_at=expires_at,
+            is_active=True,
+        )
         await self._session_repo.save(session, default_ttl=int(settings.jwt_settings.refresh_token_expire_minutes * 60))
 
         access_token = self._token_handler.encode_jwt(
@@ -118,7 +124,7 @@ class AuthService(IAuthService):
             jti = payload.get("jti")
             if not jti:
                 raise InvalidTokenError("Token is missing session ID")
-                
+
             session = await self._session_repo.get_by_id(UUID(jti))
             if not session or not session.is_active:
                 logger.warning("Refresh token failed: session is invalid or expired")
@@ -143,8 +149,17 @@ class AuthService(IAuthService):
 
             new_session_id = uuid4()
             expires_at = datetime.now() + timedelta(minutes=settings.jwt_settings.refresh_token_expire_minutes)
-            new_session = UserSession(id=new_session_id, user_id=user.id, created_at=datetime.now(), expires_at=expires_at, is_active=True)
-            await self._session_repo.save(new_session, default_ttl=int(settings.jwt_settings.refresh_token_expire_minutes * 60))
+            new_session = UserSession(
+                id=new_session_id,
+                user_id=user.id,
+                created_at=datetime.now(),
+                expires_at=expires_at,
+                is_active=True,
+            )
+            await self._session_repo.save(
+                new_session,
+                default_ttl=int(settings.jwt_settings.refresh_token_expire_minutes * 60),
+            )
 
             access_token = self._token_handler.encode_jwt(
                 payload={
@@ -187,4 +202,3 @@ class AuthService(IAuthService):
                 logger.info(f"Logout successful, deleted session: {jti}")
         except Exception as exc:
             logger.warning(f"Logout failed (token might already be discarded): {exc}")
-

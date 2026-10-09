@@ -13,6 +13,13 @@ class PostgresSettings(BaseSettings):
     POSTGRES_PORT: str = "5432"
     POSTGRES_NAME: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_POOL_MIN_SIZE: int = 1
+    POSTGRES_POOL_MAX_SIZE: int = 10
+    POSTGRES_COMMAND_TIMEOUT: float = 30.0
+    POSTGRES_ACQUIRE_TIMEOUT: float = 5.0
+    POSTGRES_MAX_QUERIES: int = 50000
+    POSTGRES_MAX_INACTIVE_CONNECTION_LIFETIME: float = 300.0
+    POSTGRES_MIGRATE_ON_START: bool = True
 
     @property
     def url(self) -> str:
@@ -129,10 +136,19 @@ class PubSubSettings(BaseSettings):
     """Redis Pub/Sub settings."""
 
     DATA_CHANGES_CHANNEL: str = "system:data_changes"
+    OUTBOX_CHANNEL: str = "domain:events"
+    OUTBOX_ENABLED: bool = True
+    OUTBOX_POLL_INTERVAL_SECONDS: float = 1.0
+    OUTBOX_MAX_ATTEMPTS: int = 5
+    OUTBOX_RETENTION_DAYS: int = 7
 
     @property
     def data_changes_channel(self) -> str:
         return self.DATA_CHANGES_CHANNEL
+
+    @property
+    def outbox_channel(self) -> str:
+        return self.OUTBOX_CHANNEL
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -47,7 +47,7 @@ class DealershipService(IDealershipService):
             dealership = await uow.dealership_repository.get_by_id(dealership_id)
             if not dealership:
                 raise NotFoundError("Dealership", str(dealership_id))
-        
+
         dto = DealershipMapper.from_entity_to_dto(dealership)
         await self._cache.set_cached(cache_key, dto, DealershipDTO, ttl=86400)
         return dto
@@ -55,14 +55,14 @@ class DealershipService(IDealershipService):
     async def get_all_dealerships(self, page: int = 1, limit: int = 20) -> tuple[list[DealershipDTO], int]:
         version = await self._cache.get_namespace_version("catalog:dealerships")
         cache_key = f"catalog:dealerships:v{version}:all:{page}:{limit}"
-        
+
         cached_res = await self._cache.get_cached(cache_key, tuple[list[DealershipDTO], int])
         if cached_res:
             return cached_res
 
         async with self._uow as uow:
             dealerships, total = await uow.dealership_repository.get_all(page=page, limit=limit)
-        
+
         result = [DealershipMapper.from_entity_to_dto(d) for d in dealerships], total
         await self._cache.set_cached(cache_key, result, tuple[list[DealershipDTO], int], ttl=86400)
         return result
@@ -70,14 +70,14 @@ class DealershipService(IDealershipService):
     async def get_active_dealerships(self) -> list[DealershipDTO]:
         version = await self._cache.get_namespace_version("catalog:dealerships")
         cache_key = f"catalog:dealerships:v{version}:active"
-        
+
         cached_res = await self._cache.get_cached(cache_key, list[DealershipDTO])
         if cached_res:
             return cached_res
 
         async with self._uow as uow:
             dealerships = await uow.dealership_repository.get_active()
-        
+
         result = [DealershipMapper.from_entity_to_dto(d) for d in dealerships]
         await self._cache.set_cached(cache_key, result, list[DealershipDTO], ttl=86400)
         return result
@@ -85,14 +85,14 @@ class DealershipService(IDealershipService):
     async def get_dealerships_by_city(self, city_id: int) -> list[DealershipDTO]:
         version = await self._cache.get_namespace_version("catalog:dealerships")
         cache_key = f"catalog:dealerships:v{version}:city:{city_id}"
-        
+
         cached_res = await self._cache.get_cached(cache_key, list[DealershipDTO])
         if cached_res:
             return cached_res
 
         async with self._uow as uow:
             dealerships = await uow.dealership_repository.get_by_city_id(city_id)
-        
+
         result = [DealershipMapper.from_entity_to_dto(d) for d in dealerships]
         await self._cache.set_cached(cache_key, result, list[DealershipDTO], ttl=86400)
         return result
@@ -100,14 +100,14 @@ class DealershipService(IDealershipService):
     async def get_dealerships_by_country(self, country: str) -> list[DealershipDTO]:
         version = await self._cache.get_namespace_version("catalog:dealerships")
         cache_key = f"catalog:dealerships:v{version}:country:{country}"
-        
+
         cached_res = await self._cache.get_cached(cache_key, list[DealershipDTO])
         if cached_res:
             return cached_res
 
         async with self._uow as uow:
             dealerships = await uow.dealership_repository.get_by_country(country)
-        
+
         result = [DealershipMapper.from_entity_to_dto(d) for d in dealerships]
         await self._cache.set_cached(cache_key, result, list[DealershipDTO], ttl=86400)
         return result
@@ -137,6 +137,6 @@ class DealershipService(IDealershipService):
                 raise NotFoundError("Dealership", str(dealership_id))
 
             result = await uow.dealership_repository.delete(dealership_id)
-        
+
         await self._invalidate_cache(dealership_id)
         return result

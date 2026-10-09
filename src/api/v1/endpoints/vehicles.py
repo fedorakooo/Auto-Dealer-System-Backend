@@ -47,7 +47,7 @@ async def create_vehicle(
 
 
 @router.get(
-    "/{vehicle_id}",
+    "/{vehicle_id:uuid}",
     response_model=VehicleResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Vehicle not found"},
@@ -145,7 +145,7 @@ async def get_vehicles_by_dealership(
 
 
 @router.patch(
-    "/{vehicle_id}",
+    "/{vehicle_id:uuid}",
     response_model=VehicleResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
@@ -168,7 +168,7 @@ async def update_vehicle(
 
 
 @router.delete(
-    "/{vehicle_id}",
+    "/{vehicle_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},

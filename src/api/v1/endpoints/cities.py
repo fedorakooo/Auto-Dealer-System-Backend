@@ -38,7 +38,7 @@ async def create_city(
 
 
 @router.get(
-    "/{city_id}",
+    "/{city_id:int}",
     response_model=CityResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "City not found"},
@@ -68,7 +68,7 @@ async def list_cities(
 
 
 @router.patch(
-    "/{city_id}",
+    "/{city_id:int}",
     response_model=CityResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "Validation or business rule error"},
@@ -90,7 +90,7 @@ async def update_city(
 
 
 @router.delete(
-    "/{city_id}",
+    "/{city_id:int}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
