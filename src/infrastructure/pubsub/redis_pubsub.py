@@ -1,6 +1,7 @@
 import asyncio
 import json
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -15,7 +16,11 @@ class RedisPubSubManager(IPubSubManager):
     """Redis implementation of Pub/Sub manager."""
 
     def __init__(self) -> None:
-        auth_str = f"{settings.redis_settings.username}:{settings.redis_settings.password}@" if settings.redis_settings.password else ""
+        auth_str = (
+            f"{settings.redis_settings.username}:{settings.redis_settings.password}@"
+            if settings.redis_settings.password
+            else ""
+        )
         self._redis = aioredis.from_url(
             f"redis://{auth_str}{settings.redis_settings.host}:{settings.redis_settings.port}/1",
             decode_responses=True,
@@ -57,7 +62,7 @@ class RedisPubSubManager(IPubSubManager):
             self._callbacks[channel] = []
             await self._pubsub.subscribe(channel)
             logger.info(f"Subscribed to Redis channel: {channel}")
-            
+
         self._callbacks[channel].append(callback)
 
     async def _listen(self) -> None:
@@ -72,7 +77,7 @@ class RedisPubSubManager(IPubSubManager):
                     except json.JSONDecodeError:
                         logger.warning(f"Failed to decode message on {channel}: {data_str}")
                         continue
-                        
+
                     callbacks = self._callbacks.get(channel, [])
                     for cb in callbacks:
                         try:

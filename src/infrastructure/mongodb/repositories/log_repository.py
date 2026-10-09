@@ -34,18 +34,22 @@ class LogRepository(ILogRepository):
 
         pipeline = [
             {"$match": {"event_type": "USER_ACTION"}},
-            {"$group": {
-                "_id": {"$dateToString": {"format": format_str, "date": "$timestamp"}},
-                "operations_count": {"$sum": 1},
-                "unique_users": {"$addToSet": "$user_id"}
-            }},
-            {"$project": {
-                "period": "$_id",
-                "operations_count": 1,
-                "unique_users_count": {"$size": "$unique_users"},
-                "_id": 0
-            }},
-            {"$sort": {"period": 1}}
+            {
+                "$group": {
+                    "_id": {"$dateToString": {"format": format_str, "date": "$timestamp"}},
+                    "operations_count": {"$sum": 1},
+                    "unique_users": {"$addToSet": "$user_id"},
+                }
+            },
+            {
+                "$project": {
+                    "period": "$_id",
+                    "operations_count": 1,
+                    "unique_users_count": {"$size": "$unique_users"},
+                    "_id": 0,
+                }
+            },
+            {"$sort": {"period": 1}},
         ]
         cursor = self._collection.aggregate(pipeline)
         return await cursor.to_list(length=None)
@@ -96,20 +100,29 @@ class LogRepository(ILogRepository):
     async def get_crud_stats(self) -> list[dict[str, Any]]:
         pipeline = [
             {"$match": {"event_type": "USER_ACTION"}},
-            {"$project": {
-                "operation_type": {
-                    "$cond": {
-                        "if": {"$regexMatch": {"input": "$action", "regex": "^CREATE"}}, "then": "CREATE",
-                        "else": {"$cond": {
-                            "if": {"$regexMatch": {"input": "$action", "regex": "^UPDATE"}}, "then": "UPDATE",
-                            "else": {"$cond": {
-                                "if": {"$regexMatch": {"input": "$action", "regex": "^DELETE"}}, "then": "DELETE",
-                                "else": "READ/OTHER"
-                            }}
-                        }}
+            {
+                "$project": {
+                    "operation_type": {
+                        "$cond": {
+                            "if": {"$regexMatch": {"input": "$action", "regex": "^CREATE"}},
+                            "then": "CREATE",
+                            "else": {
+                                "$cond": {
+                                    "if": {"$regexMatch": {"input": "$action", "regex": "^UPDATE"}},
+                                    "then": "UPDATE",
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$regexMatch": {"input": "$action", "regex": "^DELETE"}},
+                                            "then": "DELETE",
+                                            "else": "READ/OTHER",
+                                        }
+                                    },
+                                }
+                            },
+                        }
                     }
                 }
-            }},
+            },
             {"$group": {"_id": "$operation_type", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
             {"$project": {"operation_type": "$_id", "count": 1, "_id": 0}},
@@ -125,16 +138,16 @@ class LogRepository(ILogRepository):
             format_str = "%Y-%m-%dT%H:%M:00Z"
 
         pipeline = [
-            {"$match": {
-                "timestamp": {"$gte": start_time, "$lte": end_time}
-            }},
-            {"$group": {
-                "_id": {
-                    "time_bucket": {"$dateToString": {"format": format_str, "date": "$timestamp"}},
-                    "event_type": "$event_type"
-                },
-                "count": {"$sum": 1}
-            }},
+            {"$match": {"timestamp": {"$gte": start_time, "$lte": end_time}}},
+            {
+                "$group": {
+                    "_id": {
+                        "time_bucket": {"$dateToString": {"format": format_str, "date": "$timestamp"}},
+                        "event_type": "$event_type",
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
             {
                 "$lookup": {
                     "from": "logs",
@@ -144,7 +157,12 @@ class LogRepository(ILogRepository):
                             "$match": {
                                 "$expr": {
                                     "$and": [
-                                        {"$eq": [{"$dateToString": {"format": format_str, "date": "$timestamp"}}, "$$tb"]},
+                                        {
+                                            "$eq": [
+                                                {"$dateToString": {"format": format_str, "date": "$timestamp"}},
+                                                "$$tb",
+                                            ]
+                                        },
                                         {"$eq": ["$event_type", "$$et"]},
                                     ]
                                 }
@@ -157,14 +175,16 @@ class LogRepository(ILogRepository):
                     "as": "audience",
                 }
             },
-            {"$project": {
-                "timestamp": "$_id.time_bucket",
-                "event_type": "$_id.event_type",
-                "count": 1,
-                "distinct_users": {"$ifNull": [{"$arrayElemAt": ["$audience.n", 0]}, 0]},
-                "_id": 0
-            }},
-            {"$sort": {"timestamp": 1}}
+            {
+                "$project": {
+                    "timestamp": "$_id.time_bucket",
+                    "event_type": "$_id.event_type",
+                    "count": 1,
+                    "distinct_users": {"$ifNull": [{"$arrayElemAt": ["$audience.n", 0]}, 0]},
+                    "_id": 0,
+                }
+            },
+            {"$sort": {"timestamp": 1}},
         ]
         cursor = self._collection.aggregate(pipeline)
         return await cursor.to_list(length=None)
@@ -173,19 +193,23 @@ class LogRepository(ILogRepository):
         pipeline = [
             {"$match": {"event_type": "USER_ACTION", "user_id": {"$ne": None}}},
             {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
-            {"$group": {
-                "_id": None,
-                "users": {"$push": {"user_id": "$_id", "count": "$count"}},
-                "avg_count": {"$avg": "$count"}
-            }},
+            {
+                "$group": {
+                    "_id": None,
+                    "users": {"$push": {"user_id": "$_id", "count": "$count"}},
+                    "avg_count": {"$avg": "$count"},
+                }
+            },
             {"$unwind": "$users"},
-            {"$project": {
-                "user_id": "$users.user_id",
-                "action_count": "$users.count",
-                "avg_action_count": "$avg_count",
-                "is_anomaly": {"$gte": ["$users.count", {"$multiply": ["$avg_count", threshold_multiplier]}]},
-                "_id": 0
-            }},
+            {
+                "$project": {
+                    "user_id": "$users.user_id",
+                    "action_count": "$users.count",
+                    "avg_action_count": "$avg_count",
+                    "is_anomaly": {"$gte": ["$users.count", {"$multiply": ["$avg_count", threshold_multiplier]}]},
+                    "_id": 0,
+                }
+            },
             {"$match": {"is_anomaly": True}},
             {
                 "$lookup": {

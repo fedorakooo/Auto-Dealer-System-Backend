@@ -1,4 +1,3 @@
-import asyncio
 from functools import lru_cache
 from typing import Any
 
@@ -22,7 +21,7 @@ class MongoDBClient:
 
             # setup ttl index for the logs collection to delete old logs (90 days = 7776000 sec)
             await self.db.logs.create_index("timestamp", expireAfterSeconds=7776000)
-            
+
             # Create indexes for faster search and filtering
             await self.db.logs.create_index("event_type")
             await self.db.logs.create_index("user_id")
@@ -41,4 +40,3 @@ class MongoDBClient:
 @lru_cache(maxsize=1)
 def get_mongodb_client_singleton() -> MongoDBClient:
     return MongoDBClient()
-

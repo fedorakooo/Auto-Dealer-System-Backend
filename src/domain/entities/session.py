@@ -6,6 +6,7 @@ from uuid import UUID
 @dataclass
 class UserSession:
     """Represents an active user session stored in Redis."""
+
     id: UUID
     user_id: UUID
     created_at: datetime
