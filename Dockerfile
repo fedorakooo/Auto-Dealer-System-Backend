@@ -36,6 +36,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/pyproject.toml /app/poetry.lock ./
 COPY config.yaml ./config.yaml
 COPY employees.yaml ./employees.yaml
+COPY db/sql/01-schema.sql ./db/sql/01-schema.sql
 COPY src ./src
 
 EXPOSE 8000
