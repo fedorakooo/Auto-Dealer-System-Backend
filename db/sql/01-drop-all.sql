@@ -1,3 +1,18 @@
+DROP TABLE IF EXISTS idempotency_keys CASCADE;
+DROP TABLE IF EXISTS outbox_events CASCADE;
+DROP TABLE IF EXISTS dealership_part_inventory CASCADE;
+DROP TABLE IF EXISTS spare_parts CASCADE;
+DROP TABLE IF EXISTS service_order_items CASCADE;
+DROP TABLE IF EXISTS service_orders CASCADE;
+DROP TABLE IF EXISTS service_appointments CASCADE;
+DROP TABLE IF EXISTS service_catalog CASCADE;
+DROP TABLE IF EXISTS test_drive_status_history CASCADE;
+DROP TABLE IF EXISTS order_status_history CASCADE;
+DROP TABLE IF EXISTS order_payments CASCADE;
+DROP TABLE IF EXISTS vehicle_price_history CASCADE;
+DROP TABLE IF EXISTS vehicle_status_history CASCADE;
+DROP TABLE IF EXISTS customer_addresses CASCADE;
+DROP TABLE IF EXISTS employee_profiles CASCADE;
 DROP TABLE IF EXISTS test_drive_requests CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS favorites CASCADE;
@@ -20,6 +35,13 @@ DROP TABLE IF EXISTS users CASCADE;
 
 DROP FUNCTION IF EXISTS set_updated_at();
 
+DROP TYPE IF EXISTS outbox_event_status;
+DROP TYPE IF EXISTS service_order_status;
+DROP TYPE IF EXISTS service_appointment_status;
+DROP TYPE IF EXISTS payment_status;
+DROP TYPE IF EXISTS payment_method;
+DROP TYPE IF EXISTS vehicle_lifecycle_status;
+DROP TYPE IF EXISTS employment_status;
 DROP TYPE IF EXISTS test_drive_status;
 DROP TYPE IF EXISTS media_type;
 DROP TYPE IF EXISTS custom_order_status;
