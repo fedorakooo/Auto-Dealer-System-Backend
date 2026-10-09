@@ -10,6 +10,7 @@ from src.domain.abstractions.database.repositories.favorite_repository import IF
 from src.domain.abstractions.database.repositories.feature_repository import IFeatureRepository
 from src.domain.abstractions.database.repositories.model_media_repository import IModelMediaRepository
 from src.domain.abstractions.database.repositories.model_repository import IModelRepository
+from src.domain.abstractions.database.repositories.operations_repository import IOperationsRepository
 from src.domain.abstractions.database.repositories.order_repository import IOrderRepository
 from src.domain.abstractions.database.repositories.review_repository import IReviewRepository
 from src.domain.abstractions.database.repositories.testdrive_repository import ITestDriveRepository
@@ -29,6 +30,7 @@ from src.infrastructure.database.repositories.favorite_repository import Favorit
 from src.infrastructure.database.repositories.feature_repository import FeatureRepository
 from src.infrastructure.database.repositories.model_media_repository import ModelMediaRepository
 from src.infrastructure.database.repositories.model_repository import ModelRepository
+from src.infrastructure.database.repositories.operations_repository import OperationsRepository
 from src.infrastructure.database.repositories.order_repository import OrderRepository
 from src.infrastructure.database.repositories.review_repository import ReviewRepository
 from src.infrastructure.database.repositories.test_drive_repository import TestDriveRepository
@@ -63,6 +65,7 @@ class UnitOfWork(IUnitOfWork):
         self._test_drive_repository: ITestDriveRepository | None = None
         self._vehicle_media_repository: IVehicleMediaRepository | None = None
         self._favorite_repository: IFavoriteRepository | None = None
+        self._operations_repository: IOperationsRepository | None = None
 
     async def __aenter__(self) -> "UnitOfWork":
         logger.debug("Starting database transaction")
@@ -88,6 +91,7 @@ class UnitOfWork(IUnitOfWork):
         self._test_drive_repository = TestDriveRepository(self._transactional_db)
         self._vehicle_media_repository = VehicleMediaRepository(self._transactional_db)
         self._favorite_repository = FavoriteRepository(self._transactional_db)
+        self._operations_repository = OperationsRepository(self._transactional_db)
 
         return self
 
@@ -221,3 +225,9 @@ class UnitOfWork(IUnitOfWork):
         if self._favorite_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._favorite_repository
+
+    @property
+    def operations_repository(self) -> IOperationsRepository:
+        if self._operations_repository is None:
+            raise UnitOfWorkNotStartedError()
+        return self._operations_repository

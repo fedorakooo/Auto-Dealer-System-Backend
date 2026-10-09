@@ -28,7 +28,7 @@ class CustomerRepository(ICustomerRepository):
         return self._row_to_customer(row)
 
     async def create(self, customer: Customer) -> Customer:
-        query = "INSERT INTO customers (id, user_id, date_of_birth) VALUES ($1, $2, $3) RETURNING *" ""
+        query = "INSERT INTO customers (id, user_id, date_of_birth) VALUES ($1, $2, $3) RETURNING *"
         try:
             row = await self._db.fetchrow(
                 query,
