@@ -1,5 +1,3 @@
-import mimetypes
-import re
 from io import BytesIO
 from uuid import UUID, uuid4
 
@@ -9,49 +7,12 @@ from src.application.dtos.model_media_dto import (
     ModelMediaDTO,
     ModelMediaUpdateDTO,
 )
-from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
+from src.application.exceptions.errors import BusinessError, NotFoundError
 from src.application.mappers.model_media_mapper import ModelMediaMapper
+from src.application.services.media_utils import resolve_content_type, sanitize_filename, validate_image_upload
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.s3.s3_client import IS3Client
 from src.domain.value_objects.media_type import MediaType
-
-ALLOWED_IMAGE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp"})
-MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
-
-_EXTENSION_TO_MIME = {
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "png": "image/png",
-    "webp": "image/webp",
-}
-
-
-def _sanitize_filename(filename: str) -> str:
-    base = filename.rsplit("/", maxsplit=1)[-1].rsplit("\\", maxsplit=1)[-1]
-    safe = re.sub(r"[^a-zA-Z0-9._-]", "_", base).strip("._")
-    return safe or "upload"
-
-
-def _resolve_content_type(filename: str, media_type: MediaType) -> str:
-    extension = filename.rsplit(".", maxsplit=1)[-1].lower() if "." in filename else ""
-    if media_type == MediaType.IMAGE:
-        guessed, _ = mimetypes.guess_type(filename)
-        if guessed:
-            return guessed
-        return _EXTENSION_TO_MIME.get(extension, "application/octet-stream")
-    extension = filename.rsplit(".", maxsplit=1)[-1].lower() if "." in filename else ""
-    return f"video/{extension}" if extension else "application/octet-stream"
-
-
-def _validate_image_upload(filename: str, file_content: bytes) -> None:
-    extension = filename.rsplit(".", maxsplit=1)[-1].lower() if "." in filename else ""
-    if extension not in ALLOWED_IMAGE_EXTENSIONS:
-        raise ValidationError(f"Unsupported image format. Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}")
-    if len(file_content) > MAX_IMAGE_SIZE_BYTES:
-        raise ValidationError(f"Image size exceeds {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)} MB limit")
-    if not file_content:
-        raise ValidationError("Uploaded file is empty")
-
 
 class ModelMediaService(IModelMediaService):
     def __init__(self, uow: IUnitOfWork, s3_client: IS3Client | None = None):
@@ -137,16 +98,16 @@ class ModelMediaService(IModelMediaService):
         s3_client = self._require_s3_client()
 
         if media_type == MediaType.IMAGE:
-            _validate_image_upload(filename, file_content)
+            validate_image_upload(filename, file_content)
 
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(model_id)
             if not model:
                 raise NotFoundError("Model", str(model_id))
 
-            safe_filename = _sanitize_filename(filename)
+            safe_filename = sanitize_filename(filename)
             s3_key = f"models/{model_id}/{uuid4()}_{safe_filename}"
-            content_type = _resolve_content_type(safe_filename, media_type)
+            content_type = resolve_content_type(safe_filename, media_type)
             await s3_client.upload_file(s3_key, file_content, content_type)
 
             create_dto = ModelMediaCreateDTO(

@@ -19,6 +19,7 @@ from src.api.v1.endpoints import (
     reviews,
     testdrives,
     users,
+    vehicle_media,
     vehicles,
 )
 
@@ -34,6 +35,7 @@ router.include_router(models.router)
 router.include_router(model_media.router)
 router.include_router(features.router)
 router.include_router(vehicles.router)
+router.include_router(vehicle_media.router)
 router.include_router(orders.router)
 router.include_router(custom_orders.router)
 router.include_router(reviews.router)

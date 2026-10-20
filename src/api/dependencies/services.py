@@ -93,12 +93,25 @@ def get_model_media_service(
     return ModelMediaService(uow=uow, s3_client=s3_client)
 
 
+def get_vehicle_media_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    s3_client: Annotated[IS3Client | None, Depends(get_s3_client)],
+) -> IVehicleMediaService:
+    return VehicleMediaService(uow=uow, s3_client=s3_client)
+
+
 def get_vehicle_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     model_media_service: Annotated[IModelMediaService | None, Depends(get_model_media_service)],
+    vehicle_media_service: Annotated[IVehicleMediaService | None, Depends(get_vehicle_media_service)],
     pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IVehicleService:
-    return VehicleService(uow=uow, pubsub=pubsub, model_media_service=model_media_service)
+    return VehicleService(
+        uow=uow,
+        pubsub=pubsub,
+        model_media_service=model_media_service,
+        vehicle_media_service=vehicle_media_service,
+    )
 
 
 def get_city_service(
@@ -163,13 +176,6 @@ def get_test_drive_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> ITestDriveService:
     return TestDriveService(uow=uow)
-
-
-def get_vehicle_media_service(
-    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
-    s3_client: Annotated[IS3Client | None, Depends(get_s3_client)],
-) -> IVehicleMediaService:
-    return VehicleMediaService(uow=uow, s3_client=s3_client)
 
 
 def get_favorite_service(
