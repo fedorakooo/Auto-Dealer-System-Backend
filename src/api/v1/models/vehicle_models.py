@@ -74,7 +74,8 @@ class VehicleResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     model_name: str | None = None
-    images: list[str] | None = None  # URLs to model media images
+    images: list[str] | None = None  # photos of this exact vehicle
+    model_images: list[str] | None = None  # model appearance, used as fallback
 
     @classmethod
     def from_dto(cls, vehicle: VehicleDTO) -> "VehicleResponse":
@@ -92,6 +93,7 @@ class VehicleResponse(BaseModel):
             updated_at=vehicle.updated_at,
             model_name=vehicle.model_name,
             images=vehicle.images,
+            model_images=vehicle.model_images,
         )
 
 

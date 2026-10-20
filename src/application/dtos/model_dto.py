@@ -79,3 +79,4 @@ class ModelDTO:
     gross_weight_kg: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    images: list[str] | None = None  # model appearance photos
