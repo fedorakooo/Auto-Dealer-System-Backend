@@ -6,10 +6,15 @@ services:
       - POSTGRES_HOST=database
       - REDIS_HOST=redis
       - MONGO_HOST=mongodb
+      # Brand pack under ./brands; switch with BRAND=toyota docker compose up -d app (no rebuild).
+      - BRAND_DIR=/app/brands/${BRAND:-demo}
+      # Optional separate database per brand for local demos; defaults to POSTGRES_NAME.
+      - POSTGRES_NAME=${BRAND_DB_NAME:-${POSTGRES_NAME}}
     ports:
       - "8000:8000"
     volumes:
       - ./logs:/app/logs
+      - ./brands:/app/brands:ro
     depends_on:
       database:
         condition: service_healthy

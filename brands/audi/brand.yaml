@@ -1,0 +1,45 @@
+# Example: Audi dealer network in Poland and Belarus (prices in EUR).
+name: Audi Center
+short_name: AC
+tagline: Vorsprung durch Technik
+legal_name: Audi Center Network
+logo_url: logo.svg
+locale:
+  language: ru
+  locale: ru-RU
+  currency: EUR
+  country: BY
+  timezone: Europe/Minsk
+theme:
+  accent: "#bb0a30"
+  primary: "#111111"
+  focus: "#bb0a30"
+contacts:
+  phone: "+375173360000"
+  phone_display: "+375 (17) 336-00-00"
+  email: info@audi-center.example
+  address: { ru: "г. Минск, пр-т Независимости, 198", en: "198 Nezavisimosti Ave, Minsk" }
+  location_line: { ru: "Минск · Варшава · Краков", en: "Minsk · Warsaw · Krakow" }
+  working_hours:
+    - { days: { ru: "Пн–Сб", en: "Mon–Sat" }, hours: "09:00 – 20:00" }
+    - { days: { ru: "Вс", en: "Sun" }, hours: "10:00 – 18:00" }
+  service_hours_note: { ru: "Сервис: Пн–Сб 08:00 – 20:00", en: "Service: Mon–Sat 08:00 – 20:00" }
+social:
+  - { type: instagram, url: "https://instagram.com/audi" }
+  - { type: youtube, url: "https://youtube.com/@audi" }
+seo:
+  title:
+    ru: "Audi Center — модели, автомобили в наличии и сервис"
+    en: "Audi Center — models, cars in stock and service"
+  description:
+    ru: "Официальная дилерская сеть Audi: модельный ряд, автомобили в наличии, тест-драйвы и сервис."
+    en: "Official Audi dealer network: model range, cars in stock, test drives and service."
+home:
+  hero_kicker: { ru: "Дилерская сеть Audi в Беларуси и Польше", en: "Audi dealer network in Belarus and Poland" }
+  hero_title: { ru: "Ваш следующий Audi уже здесь", en: "Your next Audi is already here" }
+features:
+  test_drives: true
+  service_appointments: true
+  custom_orders: true
+server:
+  cors_origins: ["http://localhost:3000"]

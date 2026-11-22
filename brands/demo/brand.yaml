@@ -1,0 +1,33 @@
+# Neutral default brand. Every field is optional; see README "Deploying under your own brand".
+name: Demo Motors
+tagline: { ru: Дилерская сеть, en: Dealer network }
+locale:
+  language: ru
+  locale: ru-RU
+  currency: BYN
+  country: BY
+  timezone: Europe/Minsk
+theme:
+  accent: "#dc2626"
+  primary: "#1e293b"
+contacts:
+  phone: "+375170000000"
+  phone_display: "+375 (17) 000-00-00"
+  email: info@demo-motors.example
+  address: { ru: "г. Минск, ул. Примерная, 1", en: "1 Primernaya St, Minsk" }
+  location_line: { ru: "Минск · Беларусь", en: "Minsk · Belarus" }
+  working_hours:
+    - { days: { ru: "Пн–Пт", en: "Mon–Fri" }, hours: "09:00 – 20:00" }
+    - { days: { ru: "Сб–Вс", en: "Sat–Sun" }, hours: "10:00 – 16:00" }
+  service_hours_note: { ru: "Сервис: уточняйте в салоне", en: "Service: check with the dealership" }
+seo:
+  title:
+    ru: "Demo Motors — автомобили, салоны и сервис"
+    en: "Demo Motors — cars, dealerships and service"
+  description:
+    ru: "Каталог автомобилей, дилерские центры, тест-драйвы и сервисное обслуживание в одном месте."
+    en: "Car catalogue, dealerships, test drives and service in one place."
+home:
+  hero_kicker: { ru: "Дилерская сеть", en: "Dealer network" }
+demo:
+  show_login_hint: true

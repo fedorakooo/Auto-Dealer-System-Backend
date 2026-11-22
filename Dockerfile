@@ -37,7 +37,10 @@ COPY --from=builder /app/pyproject.toml /app/poetry.lock ./
 COPY config.yaml ./config.yaml
 COPY employees.yaml ./employees.yaml
 COPY db/migrations ./db/migrations
+COPY brands ./brands
 COPY src ./src
+
+ENV BRAND_DIR=/app/brands/demo
 
 EXPOSE 8000
 

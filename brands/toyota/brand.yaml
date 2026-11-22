@@ -1,0 +1,40 @@
+# Example: Toyota dealer network in Belarus (prices in BYN), custom orders switched off.
+name: Toyota Center
+short_name: TC
+tagline: { ru: Надёжность в каждой детали, en: Reliability in every detail }
+logo_url: logo.svg
+locale:
+  language: ru
+  locale: ru-BY
+  currency: BYN
+  country: BY
+  timezone: Europe/Minsk
+theme:
+  accent: "#eb0a1e"
+  primary: "#2b2f36"
+contacts:
+  phone: "+375173001010"
+  phone_display: "+375 (17) 300-10-10"
+  email: hello@toyota-center.example
+  address: { ru: "г. Минск, ул. Тимирязева, 121", en: "121 Timiryazeva St, Minsk" }
+  location_line: { ru: "Минск · Гродно · Гомель", en: "Minsk · Grodno · Gomel" }
+  working_hours:
+    - { days: { ru: "Пн–Вс", en: "Mon–Sun" }, hours: "09:00 – 20:00" }
+social:
+  - { type: telegram, url: "https://t.me/toyota_center_example" }
+  - { type: instagram, url: "https://instagram.com/toyota" }
+seo:
+  title:
+    ru: "Toyota Center — гибриды, кроссоверы и сервис"
+    en: "Toyota Center — hybrids, crossovers and service"
+  description:
+    ru: "Дилерская сеть Toyota в Беларуси: автомобили в наличии, тест-драйвы и сервисное обслуживание."
+    en: "Toyota dealer network in Belarus: cars in stock, test drives and service."
+home:
+  hero_kicker: { ru: "Официальный дилер Toyota в Беларуси", en: "Official Toyota dealer in Belarus" }
+  hero_title: { ru: "Toyota для города и бездорожья", en: "Toyota for the city and off-road" }
+  hero_subtitle:
+    ru: "Гибриды, кроссоверы и внедорожники в наличии — подберите автомобиль и запишитесь на тест-драйв онлайн."
+    en: "Hybrids, crossovers and SUVs in stock: pick a car and book a test drive online."
+features:
+  custom_orders: false

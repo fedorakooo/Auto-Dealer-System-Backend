@@ -4,6 +4,8 @@ from typing import Any
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.brand_config import BrandSettings
+
 
 class PostgresSettings(BaseSettings):
     """PostgreSQL connection settings."""
@@ -23,6 +25,7 @@ class PostgresSettings(BaseSettings):
 
     @property
     def url(self) -> str:
+        """PostgreSQL connection URL."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_NAME}"
@@ -83,18 +86,22 @@ class RedisSettings(BaseSettings):
 
     @property
     def port(self) -> int:
+        """Redis port."""
         return int(self.REDIS_PORT)
 
     @property
     def username(self) -> str:
+        """Redis username."""
         return self.REDIS_USER
 
     @property
     def password(self) -> str:
+        """Redis password."""
         return self.REDIS_USER_PASSWORD
 
     @property
     def host(self) -> str:
+        """Redis host."""
         return self.REDIS_HOST
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -111,22 +118,27 @@ class S3Settings(BaseSettings):
 
     @property
     def access_key(self) -> str:
+        """S3 access key."""
         return self.S3_ACCESS_KEY
 
     @property
     def secret_key(self) -> str:
+        """S3 secret key."""
         return self.S3_SECRET_ACCESS_KEY
 
     @property
     def endpoint(self) -> str:
+        """S3 endpoint URL."""
         return self.S3_ENDPOINT_URL
 
     @property
     def bucket_name(self) -> str:
+        """S3 bucket name."""
         return self.S3_BUCKET_NAME
 
     @property
     def region_name(self) -> str:
+        """S3 region name."""
         return self.S3_REGION_NAME
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -144,10 +156,12 @@ class PubSubSettings(BaseSettings):
 
     @property
     def data_changes_channel(self) -> str:
+        """Redis channel for data change events."""
         return self.DATA_CHANGES_CHANNEL
 
     @property
     def outbox_channel(self) -> str:
+        """Redis channel for outbox events."""
         return self.OUTBOX_CHANNEL
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -164,6 +178,7 @@ class MongoSettings(BaseSettings):
 
     @property
     def url(self) -> str:
+        """MongoDB connection URL."""
         return f"mongodb://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_HOST}:{self.MONGO_PORT}/"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -176,6 +191,7 @@ class EmployeeSeedSettings(BaseSettings):
 
     @property
     def path(self) -> Path:
+        """Absolute path of the employees YAML file."""
         return Path(__file__).resolve().parent.parent / self.EMPLOYEES_FILE
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -186,6 +202,7 @@ class UserListSettings(BaseSettings):
 
     @property
     def sort_columns(self) -> frozenset[str]:
+        """Columns the user list may be sorted by."""
         return frozenset({"created_at", "email", "first_name", "second_name"})
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -203,6 +220,7 @@ class Settings(BaseSettings):
     mongo_settings: MongoSettings = MongoSettings()
     employee_seed_settings: EmployeeSeedSettings = EmployeeSeedSettings()
     user_list_settings: UserListSettings = UserListSettings()
+    brand_settings: BrandSettings = BrandSettings()
 
     def __init__(self) -> None:
         super().__init__()

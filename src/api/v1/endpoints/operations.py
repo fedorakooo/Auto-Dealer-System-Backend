@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response
 
+from src.api.dependencies.features import require_feature
 from src.api.dependencies.services import get_operations_service
 from src.api.rbac import PermissionChecker
 from src.api.security import get_current_user
@@ -143,7 +144,12 @@ async def service_catalog(
     return OperationsResponse(items=await service.catalog(limit))
 
 
-@router.post("/service/appointments", response_model=OperationResponse, status_code=201)
+@router.post(
+    "/service/appointments",
+    response_model=OperationResponse,
+    status_code=201,
+    dependencies=[Depends(require_feature("service_appointments"))],
+)
 @PermissionChecker([UserRole.CUSTOMER])
 async def create_appointment(
     body: AppointmentCreate,
@@ -157,7 +163,11 @@ async def create_appointment(
     )
 
 
-@router.get("/service/appointments", response_model=OperationsResponse)
+@router.get(
+    "/service/appointments",
+    response_model=OperationsResponse,
+    dependencies=[Depends(require_feature("service_appointments"))],
+)
 @PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
 async def appointments(
     requesting_user: Annotated[User, Depends(get_current_user)],
@@ -169,7 +179,11 @@ async def appointments(
     return OperationsResponse(items=await service.appointments(user_id, limit))
 
 
-@router.patch("/service/appointments/{appointment_id:uuid}/status", response_model=OperationResponse)
+@router.patch(
+    "/service/appointments/{appointment_id:uuid}/status",
+    response_model=OperationResponse,
+    dependencies=[Depends(require_feature("service_appointments"))],
+)
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def change_appointment_status(
     appointment_id: UUID,
@@ -181,7 +195,11 @@ async def change_appointment_status(
     return OperationResponse(data=await service.change_appointment_status(appointment_id, body.status))
 
 
-@router.delete("/service/appointments/{appointment_id:uuid}", status_code=204)
+@router.delete(
+    "/service/appointments/{appointment_id:uuid}",
+    status_code=204,
+    dependencies=[Depends(require_feature("service_appointments"))],
+)
 @PermissionChecker([UserRole.CUSTOMER])
 async def delete_appointment(
     appointment_id: UUID,
