@@ -12,10 +12,14 @@ from src.application.mappers.model_media_mapper import ModelMediaMapper
 from src.application.services.media_utils import resolve_content_type, sanitize_filename, validate_image_upload
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.s3.s3_client import IS3Client
+from src.domain.exceptions.storage_errors import StorageObjectNotFoundError
 from src.domain.value_objects.media_type import MediaType
 
+
 class ModelMediaService(IModelMediaService):
-    def __init__(self, uow: IUnitOfWork, s3_client: IS3Client | None = None):
+    """Service for model media stored in S3."""
+
+    def __init__(self, uow: IUnitOfWork, s3_client: IS3Client | None = None) -> None:
         self._uow = uow
         self._s3_client = s3_client
 
@@ -25,6 +29,7 @@ class ModelMediaService(IModelMediaService):
         return self._s3_client
 
     async def create_model_media(self, create_dto: ModelMediaCreateDTO) -> ModelMediaDTO:
+        """Create a new model media."""
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(create_dto.model_id)
             if not model:
@@ -36,6 +41,7 @@ class ModelMediaService(IModelMediaService):
         return ModelMediaMapper.from_entity_to_dto(created_media)
 
     async def get_model_media(self, media_id: UUID) -> ModelMediaDTO:
+        """Get model media by ID."""
         async with self._uow as uow:
             model_media = await uow.model_media_repository.get_by_id(media_id)
             if not model_media:
@@ -43,11 +49,13 @@ class ModelMediaService(IModelMediaService):
         return ModelMediaMapper.from_entity_to_dto(model_media)
 
     async def get_media_by_model(self, model_id: UUID) -> list[ModelMediaDTO]:
+        """Get model media by model ID."""
         async with self._uow as uow:
             media_list = await uow.model_media_repository.get_by_model_id(model_id)
         return [ModelMediaMapper.from_entity_to_dto(media) for media in media_list]
 
     async def update_model_media(self, media_id: UUID, update_dto: ModelMediaUpdateDTO) -> ModelMediaDTO:
+        """Update model media."""
         async with self._uow as uow:
             model_media = await uow.model_media_repository.get_by_id(media_id)
             if not model_media:
@@ -59,6 +67,7 @@ class ModelMediaService(IModelMediaService):
         return ModelMediaMapper.from_entity_to_dto(saved_media)
 
     async def delete_model_media(self, media_id: UUID) -> bool:
+        """Delete model media."""
         async with self._uow as uow:
             model_media = await uow.model_media_repository.get_by_id(media_id)
             if not model_media:
@@ -71,6 +80,7 @@ class ModelMediaService(IModelMediaService):
         return result
 
     async def delete_all_model_media(self, model_id: UUID) -> int:
+        """Delete all media for a model."""
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(model_id)
             if not model:
@@ -131,4 +141,7 @@ class ModelMediaService(IModelMediaService):
             if not model_media:
                 raise NotFoundError("ModelMedia", str(media_id))
 
-        return await s3_client.get_file(model_media.url)
+        try:
+            return await s3_client.get_file(model_media.url)
+        except StorageObjectNotFoundError as exc:
+            raise NotFoundError("ModelMedia file", str(media_id)) from exc

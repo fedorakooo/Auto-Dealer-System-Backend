@@ -12,11 +12,14 @@ from src.application.mappers.vehicle_media_mapper import VehicleMediaMapper
 from src.application.services.media_utils import resolve_content_type, sanitize_filename, validate_image_upload
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.abstractions.s3.s3_client import IS3Client
+from src.domain.exceptions.storage_errors import StorageObjectNotFoundError
 from src.domain.value_objects.media_type import MediaType
 
 
 class VehicleMediaService(IVehicleMediaService):
-    def __init__(self, uow: IUnitOfWork, s3_client: IS3Client | None = None):
+    """Service for vehicle media stored in S3."""
+
+    def __init__(self, uow: IUnitOfWork, s3_client: IS3Client | None = None) -> None:
         self._uow = uow
         self._s3_client = s3_client
 
@@ -26,6 +29,7 @@ class VehicleMediaService(IVehicleMediaService):
         return self._s3_client
 
     async def create_vehicle_media(self, create_dto: VehicleMediaCreateDTO) -> VehicleMediaDTO:
+        """Create a new vehicle media."""
         async with self._uow as uow:
             vehicle = await uow.vehicle_repository.get_by_id(create_dto.vehicle_id)
             if not vehicle:
@@ -37,6 +41,7 @@ class VehicleMediaService(IVehicleMediaService):
         return VehicleMediaMapper.from_entity_to_dto(created_media)
 
     async def get_vehicle_media(self, media_id: UUID) -> VehicleMediaDTO:
+        """Get vehicle media by ID."""
         async with self._uow as uow:
             vehicle_media = await uow.vehicle_media_repository.get_by_id(media_id)
             if not vehicle_media:
@@ -44,11 +49,13 @@ class VehicleMediaService(IVehicleMediaService):
         return VehicleMediaMapper.from_entity_to_dto(vehicle_media)
 
     async def get_media_by_vehicle(self, vehicle_id: UUID) -> list[VehicleMediaDTO]:
+        """Get vehicle media by vehicle ID."""
         async with self._uow as uow:
             media_list = await uow.vehicle_media_repository.get_by_vehicle_id(vehicle_id)
         return [VehicleMediaMapper.from_entity_to_dto(media) for media in media_list]
 
     async def update_vehicle_media(self, media_id: UUID, update_dto: VehicleMediaUpdateDTO) -> VehicleMediaDTO:
+        """Update vehicle media."""
         async with self._uow as uow:
             vehicle_media = await uow.vehicle_media_repository.get_by_id(media_id)
             if not vehicle_media:
@@ -60,6 +67,7 @@ class VehicleMediaService(IVehicleMediaService):
         return VehicleMediaMapper.from_entity_to_dto(saved_media)
 
     async def delete_vehicle_media(self, media_id: UUID) -> bool:
+        """Delete vehicle media."""
         async with self._uow as uow:
             vehicle_media = await uow.vehicle_media_repository.get_by_id(media_id)
             if not vehicle_media:
@@ -72,6 +80,7 @@ class VehicleMediaService(IVehicleMediaService):
         return result
 
     async def delete_all_vehicle_media(self, vehicle_id: UUID) -> int:
+        """Delete all media for a vehicle."""
         async with self._uow as uow:
             vehicle = await uow.vehicle_repository.get_by_id(vehicle_id)
             if not vehicle:
@@ -132,4 +141,7 @@ class VehicleMediaService(IVehicleMediaService):
             if not vehicle_media:
                 raise NotFoundError("VehicleMedia", str(media_id))
 
-        return await s3_client.get_file(vehicle_media.url)
+        try:
+            return await s3_client.get_file(vehicle_media.url)
+        except StorageObjectNotFoundError as exc:
+            raise NotFoundError("VehicleMedia file", str(media_id)) from exc
