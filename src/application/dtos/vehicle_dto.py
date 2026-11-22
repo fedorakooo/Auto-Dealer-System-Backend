@@ -42,4 +42,5 @@ class VehicleDTO:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     model_name: str | None = None
-    images: list[str] | None = None  # URLs to model media images
+    images: list[str] | None = None  # photos of this exact vehicle
+    model_images: list[str] | None = None  # model appearance, used as fallback

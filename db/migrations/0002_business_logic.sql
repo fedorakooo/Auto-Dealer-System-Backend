@@ -19,6 +19,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_check_vehicle_availability ON orders;
 CREATE TRIGGER trg_check_vehicle_availability
     BEFORE INSERT OR UPDATE ON orders
     FOR EACH ROW EXECUTE FUNCTION check_vehicle_availability();
@@ -44,6 +45,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_check_test_drive_conflicts ON test_drive_requests;
 CREATE TRIGGER trg_check_test_drive_conflicts
     BEFORE INSERT OR UPDATE ON test_drive_requests
     FOR EACH ROW EXECUTE FUNCTION check_test_drive_conflicts();

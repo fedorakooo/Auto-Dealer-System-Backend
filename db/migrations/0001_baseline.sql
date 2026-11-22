@@ -127,7 +127,7 @@ CREATE TABLE vehicles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     model_id UUID NOT NULL REFERENCES models(id),
     dealership_id INTEGER NOT NULL REFERENCES dealerships(id),
-    vin VARCHAR(17) UNIQUE NOT NULL,
+    vin VARCHAR(17) UNIQUE NOT NULL CHECK (vin ~ '^[A-HJ-NPR-Z0-9]{17}$'),
     production_year INTEGER NOT NULL,
     exterior_color VARCHAR(50) NOT NULL,
     interior_color VARCHAR(50),

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from src.application.abstractions.model_media_service import IModelMediaService
+from src.application.abstractions.vehicle_media_service import IVehicleMediaService
 from src.application.abstractions.vehicle_service import IVehicleService
 from src.application.dtos.vehicle_dto import VehicleCreateDTO, VehicleDTO, VehicleUpdateDTO
 from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
@@ -21,10 +22,59 @@ class VehicleService(IVehicleService):
         uow: IUnitOfWork,
         pubsub: IPubSubManager,
         model_media_service: IModelMediaService | None = None,
+        vehicle_media_service: IVehicleMediaService | None = None,
     ):
         self._uow = uow
         self._model_media_service = model_media_service
+        self._vehicle_media_service = vehicle_media_service
         self._pubsub = pubsub
+
+    async def _enrich(self, dtos: list[VehicleDTO]) -> None:
+        """Attach model name plus both photo sets: the vehicle's own and its model's appearance."""
+        if not dtos:
+            return
+
+        model_names: dict[UUID, str] = {}
+        async with self._uow as uow:
+            for model_id in {dto.model_id for dto in dtos if not dto.model_name}:
+                model = await uow.model_repository.get_by_id(model_id)
+                if model:
+                    model_names[model_id] = model.name
+
+        model_images: dict[UUID, list[str] | None] = {}
+        for model_id in {dto.model_id for dto in dtos}:
+            model_images[model_id] = await self._load_images(
+                self._model_media_service.get_media_by_model if self._model_media_service else None,
+                model_id,
+                "model-media",
+            )
+
+        for dto in dtos:
+            if not dto.model_name:
+                dto.model_name = model_names.get(dto.model_id)
+            dto.model_images = model_images.get(dto.model_id)
+            dto.images = await self._load_images(
+                self._vehicle_media_service.get_media_by_vehicle if self._vehicle_media_service else None,
+                dto.id,
+                "vehicle-media",
+            )
+
+    @staticmethod
+    async def _load_images(loader, owner_id: UUID, route: str) -> list[str] | None:
+        """Return sorted image file URLs from a media loader, or None when there are none."""
+        if loader is None:
+            return None
+        try:
+            media_list = await loader(owner_id)
+        except Exception as e:
+            logger.warning(f"Failed to load {route} for {owner_id}: {e}")
+            return None
+        urls = [
+            f"/api/v1/{route}/{media.id}/file"
+            for media in sorted(media_list, key=lambda m: m.sort_order)
+            if media.media_type == MediaType.IMAGE
+        ]
+        return urls or None
 
     async def create_vehicle(self, create_dto: VehicleCreateDTO) -> VehicleDTO:
         logger.debug(f"Creating vehicle with VIN: {create_dto.vin}, model_id: {create_dto.model_id}")
@@ -57,7 +107,9 @@ class VehicleService(IVehicleService):
             {"entity": "vehicle", "action": "create", "id": str(created_vehicle.id)},
         )
 
-        return VehicleMapper.from_entity_to_dto(created_vehicle)
+        dto = VehicleMapper.from_entity_to_dto(created_vehicle)
+        await self._enrich([dto])
+        return dto
 
     async def get_vehicle(self, vehicle_id: UUID) -> VehicleDTO:
         async with self._uow as uow:
@@ -66,20 +118,7 @@ class VehicleService(IVehicleService):
                 raise NotFoundError("Vehicle", str(vehicle_id))
 
         dto = VehicleMapper.from_entity_to_dto(vehicle)
-
-        if self._model_media_service:
-            try:
-                media_list = await self._model_media_service.get_media_by_model(vehicle.model_id)
-                sorted_media = sorted(media_list, key=lambda m: m.sort_order)
-                image_urls = [
-                    f"/api/v1/model-media/{media.id}/file"
-                    for media in sorted_media
-                    if media.media_type == MediaType.IMAGE
-                ]
-                dto.images = image_urls if image_urls else None
-            except Exception as e:
-                logger.warning(f"Failed to load model media for vehicle {vehicle_id}: {e}")
-                dto.images = None
+        await self._enrich([dto])
 
         return dto
 
@@ -89,28 +128,7 @@ class VehicleService(IVehicleService):
 
         dtos = [VehicleMapper.from_entity_to_dto(vehicle) for vehicle in vehicles]
 
-        # Load model media images if service is available
-        if self._model_media_service:
-            model_ids = {vehicle.model_id for vehicle in vehicles}
-            # Preload all media for all models
-            model_media_map: dict[UUID, list[str]] = {}
-            for model_id in model_ids:
-                try:
-                    media_list = await self._model_media_service.get_media_by_model(model_id)
-                    sorted_media = sorted(media_list, key=lambda m: m.sort_order)
-                    image_urls = [
-                        f"/api/v1/model-media/{media.id}/file"
-                        for media in sorted_media
-                        if media.media_type == MediaType.IMAGE
-                    ]
-                    if image_urls:
-                        model_media_map[model_id] = image_urls
-                except Exception as e:
-                    logger.warning(f"Failed to load model media for model {model_id}: {e}")
-
-            # Assign images to each vehicle DTO
-            for dto in dtos:
-                dto.images = model_media_map.get(dto.model_id) or None
+        await self._enrich(dtos)
 
         return dtos, total
 
@@ -137,28 +155,7 @@ class VehicleService(IVehicleService):
 
         dtos = [VehicleMapper.from_entity_to_dto(vehicle) for vehicle in vehicles]
 
-        # Load model media images if service is available
-        if self._model_media_service:
-            model_ids = {vehicle.model_id for vehicle in vehicles}
-            # Preload all media for all models
-            model_media_map: dict[UUID, list[str]] = {}
-            for model_id in model_ids:
-                try:
-                    media_list = await self._model_media_service.get_media_by_model(model_id)
-                    sorted_media = sorted(media_list, key=lambda m: m.sort_order)
-                    image_urls = [
-                        f"/api/v1/model-media/{media.id}/file"
-                        for media in sorted_media
-                        if media.media_type == MediaType.IMAGE
-                    ]
-                    if image_urls:
-                        model_media_map[model_id] = image_urls
-                except Exception as e:
-                    logger.warning(f"Failed to load model media for model {model_id}: {e}")
-
-            # Assign images to each vehicle DTO
-            for dto in dtos:
-                dto.images = model_media_map.get(dto.model_id) or None
+        await self._enrich(dtos)
 
         return dtos
 
@@ -168,28 +165,7 @@ class VehicleService(IVehicleService):
 
         dtos = [VehicleMapper.from_entity_to_dto(vehicle) for vehicle in vehicles]
 
-        # Load model media images if service is available
-        if self._model_media_service:
-            model_ids = {vehicle.model_id for vehicle in vehicles}
-            # Preload all media for all models
-            model_media_map: dict[UUID, list[str]] = {}
-            for model_id in model_ids:
-                try:
-                    media_list = await self._model_media_service.get_media_by_model(model_id)
-                    sorted_media = sorted(media_list, key=lambda m: m.sort_order)
-                    image_urls = [
-                        f"/api/v1/model-media/{media.id}/file"
-                        for media in sorted_media
-                        if media.media_type == MediaType.IMAGE
-                    ]
-                    if image_urls:
-                        model_media_map[model_id] = image_urls
-                except Exception as e:
-                    logger.warning(f"Failed to load model media for model {model_id}: {e}")
-
-            # Assign images to each vehicle DTO
-            for dto in dtos:
-                dto.images = model_media_map.get(dto.model_id) or None
+        await self._enrich(dtos)
 
         return dtos
 
@@ -226,21 +202,7 @@ class VehicleService(IVehicleService):
         )
 
         dto = VehicleMapper.from_entity_to_dto(saved_vehicle)
-
-        # Load model media images if service is available
-        if self._model_media_service:
-            try:
-                media_list = await self._model_media_service.get_media_by_model(saved_vehicle.model_id)
-                sorted_media = sorted(media_list, key=lambda m: m.sort_order)
-                image_urls = [
-                    f"/api/v1/model-media/{media.id}/file"
-                    for media in sorted_media
-                    if media.media_type == MediaType.IMAGE
-                ]
-                dto.images = image_urls if image_urls else None
-            except Exception as e:
-                logger.warning(f"Failed to load model media for vehicle {vehicle_id}: {e}")
-                dto.images = None
+        await self._enrich([dto])
 
         return dto
 
@@ -250,6 +212,10 @@ class VehicleService(IVehicleService):
             if not vehicle:
                 raise NotFoundError("Vehicle", str(vehicle_id))
 
+        if self._vehicle_media_service:
+            await self._vehicle_media_service.delete_all_vehicle_media(vehicle_id)
+
+        async with self._uow as uow:
             result = await uow.vehicle_repository.delete(vehicle_id)
 
         await self._pubsub.publish(

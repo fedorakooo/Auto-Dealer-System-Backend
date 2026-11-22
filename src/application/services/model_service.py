@@ -7,6 +7,10 @@ from src.application.exceptions.errors import NotFoundError, ValidationError
 from src.application.mappers.model_mapper import ModelMapper
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.value_objects.filters import ModelFilter
+from src.domain.value_objects.media_type import MediaType
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ModelService(IModelService):
@@ -37,12 +41,33 @@ class ModelService(IModelService):
             model = await uow.model_repository.get_by_id(model_id)
             if not model:
                 raise NotFoundError("Model", str(model_id))
-        return ModelMapper.from_entity_to_dto(model)
+        dto = ModelMapper.from_entity_to_dto(model)
+        await self._attach_images([dto])
+        return dto
 
     async def get_models(self, model_filter: ModelFilter) -> tuple[list[ModelDTO], int]:
         async with self._uow as uow:
             models, total = await uow.model_repository.get_models(model_filter)
-        return [ModelMapper.from_entity_to_dto(model) for model in models], total
+        dtos = [ModelMapper.from_entity_to_dto(model) for model in models]
+        await self._attach_images(dtos)
+        return dtos, total
+
+    async def _attach_images(self, dtos: list[ModelDTO]) -> None:
+        """Fill `images` with the model's appearance photos (sorted, images only)."""
+        if not self._model_media_service:
+            return
+        for dto in dtos:
+            try:
+                media_list = await self._model_media_service.get_media_by_model(dto.id)
+            except Exception as e:
+                logger.warning(f"Failed to load media for model {dto.id}: {e}")
+                continue
+            urls = [
+                f"/api/v1/model-media/{media.id}/file"
+                for media in sorted(media_list, key=lambda m: m.sort_order)
+                if media.media_type == MediaType.IMAGE
+            ]
+            dto.images = urls or None
 
     async def update_model(self, model_id: UUID, update_dto: ModelUpdateDTO) -> ModelDTO:
         async with self._uow as uow:
