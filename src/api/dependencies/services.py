@@ -17,6 +17,7 @@ from src.application.abstractions.dealership_review_service import IDealershipRe
 from src.application.abstractions.dealership_service import IDealershipService
 from src.application.abstractions.favorite_service import IFavoriteService
 from src.application.abstractions.feature_service import IFeatureService
+from src.application.abstractions.lookup_service import ILookupService
 from src.application.abstractions.model_media_service import IModelMediaService
 from src.application.abstractions.model_service import IModelService
 from src.application.abstractions.operations_service import IOperationsService
@@ -37,6 +38,7 @@ from src.application.services.dealership_service import DealershipService
 from src.application.services.favorite_service import FavoriteService
 from src.application.services.feature_service import FeatureService
 from src.application.services.log_service import LogService
+from src.application.services.lookup_service import LookupService
 from src.application.services.model_media_service import ModelMediaService
 from src.application.services.model_service import ModelService
 from src.application.services.operations_service import OperationsService
@@ -164,6 +166,12 @@ def get_dealership_review_service(
     """Provides the dealership review service."""
     return DealershipReviewService(uow=uow)
 
+
+def get_lookup_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+) -> ILookupService:
+    """Provides the catalog lookup service."""
+    return LookupService(uow=uow)
 
 
 def get_feature_service(

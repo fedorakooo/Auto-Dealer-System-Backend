@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from types import TracebackType
 
+from src.domain.abstractions.database.repositories.body_type_repository import IBodyTypeRepository
 from src.domain.abstractions.database.repositories.city_repository import ICityRepository
 from src.domain.abstractions.database.repositories.custom_order_repository import ICustomOrderRepository
 from src.domain.abstractions.database.repositories.customer_repository import ICustomerRepository
@@ -74,6 +75,10 @@ class IUnitOfWork(ABC):
     def dealership_review_repository(self) -> IDealershipReviewRepository:
         """Returns the dealership review repository."""
 
+    @property
+    @abstractmethod
+    def body_type_repository(self) -> IBodyTypeRepository:
+        """Returns the body type repository."""
 
     @property
     @abstractmethod

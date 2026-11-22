@@ -3,6 +3,7 @@ from types import TracebackType
 import asyncpg
 
 from src.domain.abstractions.database.connection import IDatabaseConnection
+from src.domain.abstractions.database.repositories.body_type_repository import IBodyTypeRepository
 from src.domain.abstractions.database.repositories.city_repository import ICityRepository
 from src.domain.abstractions.database.repositories.custom_order_repository import ICustomOrderRepository
 from src.domain.abstractions.database.repositories.customer_repository import ICustomerRepository
@@ -26,6 +27,7 @@ from src.domain.abstractions.database.repositories.vehicle_repository import IVe
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.infrastructure.database.connection import DatabaseConnection
 from src.infrastructure.database.exceptions import DatabaseTransactionError, UnitOfWorkNotStartedError
+from src.infrastructure.database.repositories.body_type_repository import BodyTypeRepository
 from src.infrastructure.database.repositories.city_repository import CityRepository
 from src.infrastructure.database.repositories.custom_order_repository import CustomOrderRepository
 from src.infrastructure.database.repositories.customer_repository import CustomerRepository
@@ -65,6 +67,7 @@ class UnitOfWork(IUnitOfWork):
         self._dealership_repository: IDealershipRepository | None = None
         self._dealership_media_repository: IDealershipMediaRepository | None = None
         self._dealership_review_repository: IDealershipReviewRepository | None = None
+        self._body_type_repository: IBodyTypeRepository | None = None
         self._engine_repository: IEngineRepository | None = None
         self._transmission_repository: ITransmissionRepository | None = None
         self._model_repository: IModelRepository | None = None
@@ -94,6 +97,7 @@ class UnitOfWork(IUnitOfWork):
         self._dealership_repository = DealershipRepository(self._transactional_db)
         self._dealership_media_repository = DealershipMediaRepository(self._transactional_db)
         self._dealership_review_repository = DealershipReviewRepository(self._transactional_db)
+        self._body_type_repository = BodyTypeRepository(self._transactional_db)
         self._engine_repository = EngineRepository(self._transactional_db)
         self._transmission_repository = TransmissionRepository(self._transactional_db)
         self._model_repository = ModelRepository(self._transactional_db)
@@ -192,6 +196,12 @@ class UnitOfWork(IUnitOfWork):
             raise UnitOfWorkNotStartedError()
         return self._dealership_review_repository
 
+    @property
+    def body_type_repository(self) -> IBodyTypeRepository:
+        """Returns the body type repository."""
+        if self._body_type_repository is None:
+            raise UnitOfWorkNotStartedError()
+        return self._body_type_repository
 
     @property
     def engine_repository(self) -> IEngineRepository:

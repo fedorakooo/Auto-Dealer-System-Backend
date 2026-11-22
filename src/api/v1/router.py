@@ -16,6 +16,7 @@ from src.api.v1.endpoints import (
     features,
     health,
     logs,
+    lookups,
     model_media,
     model_vehicles,
     models,
@@ -33,6 +34,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
 router.include_router(health.router)
 router.include_router(brand.router)
+router.include_router(lookups.router)
 router.include_router(users.router)
 router.include_router(customers.router)
 router.include_router(cities.router)
