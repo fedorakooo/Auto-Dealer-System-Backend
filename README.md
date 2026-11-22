@@ -174,6 +174,19 @@ poetry install
 poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+## Database initialization
+
+The schema is owned by versioned migrations; the app applies them on startup (`POSTGRES_MIGRATE_ON_START=true`).
+
+| Path | Purpose |
+|---|---|
+| `db/migrations/NNNN_name.sql` | Forward-only migrations (DDL, triggers, functions/procedures). Applied in order, each in one transaction, checksum-verified |
+| `db/queries/` | Reference SQL queries and reports (never executed automatically) |
+| `db/dev/drop_all.sql` | Local helper that drops every object; never run it against shared environments |
+
+Rules: never edit an applied migration (startup fails on checksum mismatch) - add a new `NNNN_*.sql` instead.
+Databases created by the previous `initdb.d`/heuristic setup are adopted automatically as `0001_baseline`.
+
 ## API overview
 
 All API routes are under `/api/v1` (see `src/api/v1/router.py`).
