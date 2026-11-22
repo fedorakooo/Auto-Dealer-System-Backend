@@ -14,20 +14,15 @@ logger = get_logger(__name__)
 
 
 class ModelService(IModelService):
-    def __init__(self, uow: IUnitOfWork, model_media_service: IModelMediaService | None = None):
+    """Service for vehicle model operations."""
+
+    def __init__(self, uow: IUnitOfWork, model_media_service: IModelMediaService | None = None) -> None:
         self._uow = uow
         self._model_media_service = model_media_service
 
     async def create_model(self, create_dto: ModelCreateDTO) -> ModelDTO:
+        """Create a new model."""
         async with self._uow as uow:
-            engine = await uow.engine_repository.get_by_id(create_dto.engine_id)
-            if not engine:
-                raise NotFoundError("Engine", str(create_dto.engine_id))
-
-            transmission = await uow.transmission_repository.get_by_id(create_dto.transmission_id)
-            if not transmission:
-                raise NotFoundError("Transmission", str(create_dto.transmission_id))
-
             if create_dto.production_year_end and create_dto.production_year_start > create_dto.production_year_end:
                 raise ValidationError("Production year start must be before or equal to production year end")
 
@@ -37,20 +32,31 @@ class ModelService(IModelService):
         return ModelMapper.from_entity_to_dto(created_model)
 
     async def get_model(self, model_id: UUID) -> ModelDTO:
+        """Get model by ID."""
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(model_id)
             if not model:
                 raise NotFoundError("Model", str(model_id))
         dto = ModelMapper.from_entity_to_dto(model)
+        await self._attach_stock_stats([dto])
         await self._attach_images([dto])
         return dto
 
     async def get_models(self, model_filter: ModelFilter) -> tuple[list[ModelDTO], int]:
+        """Get models with filtering and pagination."""
         async with self._uow as uow:
             models, total = await uow.model_repository.get_models(model_filter)
         dtos = [ModelMapper.from_entity_to_dto(model) for model in models]
+        await self._attach_stock_stats(dtos)
         await self._attach_images(dtos)
         return dtos, total
+
+    async def _attach_stock_stats(self, dtos: list[ModelDTO]) -> None:
+        """Fill how many vehicles of each model are in stock and the lowest in-stock price."""
+        async with self._uow as uow:
+            stats = await uow.vehicle_repository.get_model_stock_stats([dto.id for dto in dtos])
+        for dto in dtos:
+            dto.vehicles_in_stock, dto.min_price = stats.get(dto.id, (0, None))
 
     async def _attach_images(self, dtos: list[ModelDTO]) -> None:
         """Fill `images` with the model's appearance photos (sorted, images only)."""
@@ -70,20 +76,11 @@ class ModelService(IModelService):
             dto.images = urls or None
 
     async def update_model(self, model_id: UUID, update_dto: ModelUpdateDTO) -> ModelDTO:
+        """Update model."""
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(model_id)
             if not model:
                 raise NotFoundError("Model", str(model_id))
-
-            if update_dto.engine_id:
-                engine = await uow.engine_repository.get_by_id(update_dto.engine_id)
-                if not engine:
-                    raise NotFoundError("Engine", str(update_dto.engine_id))
-
-            if update_dto.transmission_id:
-                transmission = await uow.transmission_repository.get_by_id(update_dto.transmission_id)
-                if not transmission:
-                    raise NotFoundError("Transmission", str(update_dto.transmission_id))
 
             production_year_start = (
                 update_dto.production_year_start
@@ -104,6 +101,7 @@ class ModelService(IModelService):
         return ModelMapper.from_entity_to_dto(saved_model)
 
     async def delete_model(self, model_id: UUID) -> bool:
+        """Delete model."""
         async with self._uow as uow:
             model = await uow.model_repository.get_by_id(model_id)
             if not model:

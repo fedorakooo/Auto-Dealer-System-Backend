@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -8,19 +7,22 @@ import asyncpg
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.domain.abstractions.database.repositories.order_repository import IOrderRepository
 from src.domain.entities.order import Order
+from src.domain.exceptions.vehicle_errors import VehicleAlreadyOrderedError
 from src.domain.utils.uuid_helpers import parse_uuid
 from src.domain.value_objects.filters import OrderFilter
 from src.domain.value_objects.order_status import OrderStatus
+from src.infrastructure.database.audit_context import set_audit_context
 from src.infrastructure.database.exceptions import DatabaseNotFoundError
-
-logger = logging.getLogger(__name__)
 
 
 class OrderRepository(IOrderRepository):
-    def __init__(self, db_connection: IDatabaseConnection):
+    """PostgreSQL repository for orders."""
+
+    def __init__(self, db_connection: IDatabaseConnection) -> None:
         self._db = db_connection
 
     async def get_by_id(self, order_id: UUID) -> Order | None:
+        """Returns one order by ID or None."""
         query = (
             "SELECT id, customer_id, vehicle_id, dealership_id, status, final_price, "
             "created_at, updated_at FROM get_order_with_details($1::UUID, NULL) LIMIT 1"
@@ -31,6 +33,7 @@ class OrderRepository(IOrderRepository):
         return self._row_to_order(row)
 
     async def get_orders(self, order_filter: OrderFilter) -> tuple[list[Order], int]:
+        """Returns orders based on filter."""
         offset = (order_filter.page - 1) * order_filter.limit
 
         customer_id_uuid = UUID(order_filter.customer_id) if order_filter.customer_id else None
@@ -63,11 +66,13 @@ class OrderRepository(IOrderRepository):
         return [self._row_to_order(row) for row in rows], total
 
     async def get_by_customer_id(self, customer_id: UUID) -> list[Order]:
+        """Returns orders by customer ID."""
         query = "SELECT * FROM orders WHERE customer_id = $1 ORDER BY created_at DESC"
         rows = await self._db.fetch(query, str(customer_id))
         return [self._row_to_order(row) for row in rows]
 
     async def get_by_dealership_id(self, dealership_id: int) -> list[Order]:
+        """Returns orders by dealership ID."""
         query = (
             "SELECT id, customer_id, vehicle_id, dealership_id, status, final_price, "
             "created_at, updated_at FROM get_order_with_details(NULL, $1)"
@@ -76,24 +81,30 @@ class OrderRepository(IOrderRepository):
         return [self._row_to_order(row) for row in rows]
 
     async def create(self, order: Order) -> Order:
+        """Creates a new order and returns the created order."""
         query = """
             INSERT INTO orders (id, customer_id, vehicle_id, dealership_id, status, final_price, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         """
-        row = await self._db.fetchrow(
-            query,
-            str(order.id),
-            str(order.customer_id),
-            str(order.vehicle_id),
-            order.dealership_id,
-            order.status.value,
-            float(order.final_price),
-            order.created_at or datetime.utcnow(),
-        )
+        try:
+            row = await self._db.fetchrow(
+                query,
+                str(order.id),
+                str(order.customer_id),
+                str(order.vehicle_id),
+                order.dealership_id,
+                order.status.value,
+                float(order.final_price),
+                order.created_at or datetime.utcnow(),
+            )
+        except asyncpg.UniqueViolationError as exc:
+            # The partial unique index allows only one active order per vehicle.
+            raise VehicleAlreadyOrderedError(str(order.vehicle_id)) from exc
         return self._row_to_order(row)
 
     async def update(self, order: Order) -> Order:
+        """Updates an order and returns the updated order."""
         query = """
             UPDATE orders
             SET customer_id = $2, vehicle_id = $3, dealership_id = $4, status = $5, final_price = $6, updated_at = $7
@@ -114,32 +125,25 @@ class OrderRepository(IOrderRepository):
             raise DatabaseNotFoundError(f"Order with id {order.id} not found")
         return self._row_to_order(row)
 
-    async def update_status(self, order_id: UUID, new_status: OrderStatus) -> bool:
-        try:
-            logger.info("updating order status")
-
-            await self._db.execute(
-                "CALL update_order_status($1::UUID, $2::order_status)",
-                str(order_id),
-                new_status.value,
-            )
-
-            check_query = "SELECT status FROM orders WHERE id = $1::UUID"
-            updated_status = await self._db.fetchval(check_query, str(order_id))
-
-            if updated_status and updated_status == new_status.value:
-                return True
-            return False
-        except Exception as exc:
-            logger.error(f"Error updating order status: {exc}")
-            return False
+    async def update_status(self, order_id: UUID, new_status: OrderStatus, changed_by: UUID | None = None) -> bool:
+        """Updates order status by order ID and records who did it."""
+        await set_audit_context(self._db, changed_by)
+        await self._db.execute(
+            "CALL update_order_status($1::UUID, $2::order_status)",
+            str(order_id),
+            new_status.value,
+        )
+        updated_status = await self._db.fetchval("SELECT status FROM orders WHERE id = $1::UUID", str(order_id))
+        return updated_status == new_status.value
 
     async def validate_status_transition(self, old_status: OrderStatus, new_status: OrderStatus) -> bool:
+        """Validates if status transition is allowed using is_valid_status_transition function."""
         query = "SELECT is_valid_status_transition($1::order_status, $2::order_status)"
         result = await self._db.fetchval(query, old_status.value, new_status.value)
         return result
 
     async def delete(self, order_id: UUID) -> bool:
+        """Deletes an order by its ID."""
         query = "DELETE FROM orders WHERE id = $1"
         result = await self._db.execute(query, str(order_id))
         return result == "DELETE 1"

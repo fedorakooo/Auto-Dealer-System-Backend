@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -11,7 +12,7 @@ from src.api.v1.models.model_models import (
     ModelsResponse,
     ModelUpdateRequest,
 )
-from src.application.services.model_service import ModelService
+from src.application.abstractions.model_service import IModelService
 from src.domain.entities.user import User
 from src.domain.value_objects.filters import ModelFilter, ModelSortField, OrderField
 from src.domain.value_objects.user_role import UserRole
@@ -27,16 +28,16 @@ router = APIRouter(prefix="/models", tags=["models"])
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
         status.HTTP_403_FORBIDDEN: {"description": "Requesting user is blocked or doesn't have access to this request"},
-        status.HTTP_404_NOT_FOUND: {"description": "Engine or transmission not found"},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Unexpected server error"},
     },
 )
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def create_model(
     body: ModelCreateRequest,
-    requesting_user: User = Depends(get_current_user),
-    model_service: ModelService = Depends(get_model_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    model_service: Annotated[IModelService, Depends(get_model_service)],
 ) -> ModelResponse:
+    """Creates a vehicle model."""
     dto = await model_service.create_model(body.to_dto())
     return ModelResponse.from_dto(dto)
 
@@ -51,8 +52,9 @@ async def create_model(
 )
 async def get_model(
     model_id: UUID,
-    model_service: ModelService = Depends(get_model_service),
+    model_service: Annotated[IModelService, Depends(get_model_service)],
 ) -> ModelResponse:
+    """Returns a vehicle model by ID."""
     dto = await model_service.get_model(model_id)
     return ModelResponse.from_dto(dto)
 
@@ -65,6 +67,7 @@ async def get_model(
     },
 )
 async def list_models(
+    model_service: Annotated[IModelService, Depends(get_model_service)],
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     sort_by: ModelSortField | None = Query(None),
@@ -73,8 +76,8 @@ async def list_models(
     is_in_production: bool | None = Query(None),
     body_type_id: int | None = Query(None),
     engine_id: int | None = Query(None),
-    model_service: ModelService = Depends(get_model_service),
 ) -> ModelsResponse:
+    """Lists vehicle models with filtering and pagination."""
     model_filter = ModelFilter(
         page=page,
         limit=limit,
@@ -99,7 +102,7 @@ async def list_models(
         status.HTTP_400_BAD_REQUEST: {"description": "Validation error"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
         status.HTTP_403_FORBIDDEN: {"description": "Requesting user is blocked or doesn't have access to this request"},
-        status.HTTP_404_NOT_FOUND: {"description": "Model, engine or transmission not found"},
+        status.HTTP_404_NOT_FOUND: {"description": "Model not found"},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Unexpected server error"},
     },
 )
@@ -107,9 +110,10 @@ async def list_models(
 async def update_model(
     model_id: UUID,
     body: ModelUpdateRequest,
-    requesting_user: User = Depends(get_current_user),
-    model_service: ModelService = Depends(get_model_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    model_service: Annotated[IModelService, Depends(get_model_service)],
 ) -> ModelResponse:
+    """Updates a vehicle model."""
     dto = await model_service.update_model(model_id, body.to_dto())
     return ModelResponse.from_dto(dto)
 
@@ -127,8 +131,9 @@ async def update_model(
 @PermissionChecker([UserRole.ADMIN])
 async def delete_model(
     model_id: UUID,
-    requesting_user: User = Depends(get_current_user),
-    model_service: ModelService = Depends(get_model_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    model_service: Annotated[IModelService, Depends(get_model_service)],
 ) -> None:
+    """Deletes a vehicle model."""
     await model_service.delete_model(model_id)
     return None

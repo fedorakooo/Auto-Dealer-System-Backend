@@ -3,6 +3,7 @@ import traceback
 from collections.abc import Sequence
 from typing import Any
 
+import asyncpg
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -158,6 +159,14 @@ def exception_container(app: FastAPI) -> None:
         request: Request, exc: DatabaseUniqueViolationError
     ) -> JSONResponse:
         logger.warning(f"Database unique violation: {exc!s}")
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(asyncpg.exceptions.RaiseError)
+    async def database_rule_violation_handler(request: Request, exc: asyncpg.exceptions.RaiseError) -> JSONResponse:
+        logger.warning(f"Database business rule violated: {exc!s}")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(exc)},

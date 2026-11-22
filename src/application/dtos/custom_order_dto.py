@@ -8,11 +8,11 @@ from src.domain.value_objects.custom_order_status import CustomOrderStatus
 
 @dataclass
 class CustomOrderCreateDTO:
+    """Data for creating a custom order."""
+
     customer_id: UUID
     dealership_id: int
-    model_id: UUID
-    engine_id: int
-    transmission_id: int
+    trim_id: UUID
     exterior_color: str
     interior_color: str | None = None
     estimated_price: Decimal | None = None
@@ -21,9 +21,9 @@ class CustomOrderCreateDTO:
 
 @dataclass
 class CustomOrderUpdateDTO:
-    model_id: UUID | None = None
-    engine_id: int | None = None
-    transmission_id: int | None = None
+    """Data for updating a custom order."""
+
+    trim_id: UUID | None = None
     exterior_color: str | None = None
     interior_color: str | None = None
     status: CustomOrderStatus | None = None
@@ -34,12 +34,13 @@ class CustomOrderUpdateDTO:
 
 @dataclass
 class CustomOrderDTO:
+    """Custom order data returned by the application layer."""
+
     id: UUID
     customer_id: UUID
     dealership_id: int
     model_id: UUID
-    engine_id: int
-    transmission_id: int
+    trim_id: UUID
     exterior_color: str
     interior_color: str | None = None
     status: CustomOrderStatus = CustomOrderStatus.PENDING_APPROVAL

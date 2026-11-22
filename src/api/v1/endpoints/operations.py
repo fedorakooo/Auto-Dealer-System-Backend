@@ -18,59 +18,23 @@ from src.api.v1.models.operations_models import (
     ServiceItemCreate,
     ServiceOrderCreate,
     ServiceStatusUpdate,
-    VehicleStatusCreate,
 )
 from src.application.abstractions.operations_service import IOperationsService
-from src.application.services.operations_service import OperationsService
 from src.domain.entities.user import User
 from src.domain.value_objects.user_role import UserRole
 
 router = APIRouter(tags=["extended-operations"])
 
 
-@router.get("/vehicles/{vehicle_id:uuid}/price-history", response_model=OperationsResponse)
-@PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
-async def vehicle_price_history(
-    vehicle_id: UUID,
-    limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: IOperationsService = Depends(get_operations_service),
-) -> OperationsResponse:
-    return OperationsResponse(items=await service.vehicle_history(vehicle_id, "price", limit))
-
-
-@router.get("/vehicles/{vehicle_id:uuid}/status-history", response_model=OperationsResponse)
-@PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
-async def vehicle_status_history(
-    vehicle_id: UUID,
-    limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
-) -> OperationsResponse:
-    return OperationsResponse(items=await service.vehicle_history(vehicle_id, "status", limit))
-
-
-@router.post("/vehicles/{vehicle_id:uuid}/status", response_model=OperationResponse, status_code=201)
-@PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
-async def add_vehicle_status(
-    vehicle_id: UUID,
-    body: VehicleStatusCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
-) -> OperationResponse:
-    return OperationResponse(
-        data=await service.add_vehicle_status(vehicle_id, body.status, body.reason, requesting_user.id)
-    )
-
-
 @router.get("/orders/{order_id:uuid}/status-history", response_model=OperationsResponse)
 @PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
 async def order_status_history(
     order_id: UUID,
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Returns the status history of an order."""
     return OperationsResponse(items=await service.order_history(order_id, limit))
 
 
@@ -78,10 +42,11 @@ async def order_status_history(
 @PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
 async def order_payments(
     order_id: UUID,
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists payments of an order."""
     return OperationsResponse(items=await service.payments(order_id, limit))
 
 
@@ -91,9 +56,10 @@ async def create_payment(
     order_id: UUID,
     body: PaymentCreate,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=255)],
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Records a payment for an order."""
     return OperationResponse(
         data=await service.create_payment(order_id, body.model_dump(), idempotency_key, requesting_user.id)
     )
@@ -102,9 +68,10 @@ async def create_payment(
 @router.get("/customers/me/addresses", response_model=OperationsResponse)
 @PermissionChecker([UserRole.CUSTOMER])
 async def addresses(
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationsResponse:
+    """Lists addresses of the requesting customer."""
     return OperationsResponse(items=await service.addresses(requesting_user.id))
 
 
@@ -112,9 +79,10 @@ async def addresses(
 @PermissionChecker([UserRole.CUSTOMER])
 async def create_address(
     body: AddressCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Adds an address for the requesting customer."""
     return OperationResponse(data=await service.create_address(requesting_user.id, body.model_dump()))
 
 
@@ -122,9 +90,10 @@ async def create_address(
 @PermissionChecker([UserRole.CUSTOMER])
 async def delete_address(
     address_id: UUID,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> Response:
+    """Deletes an address of the requesting customer."""
     await service.delete_address(requesting_user.id, address_id)
     return Response(status_code=204)
 
@@ -134,19 +103,21 @@ async def delete_address(
 async def update_address(
     address_id: UUID,
     body: AddressCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Replaces an address of the requesting customer."""
     return OperationResponse(data=await service.update_address(requesting_user.id, address_id, body.model_dump()))
 
 
 @router.get("/employees", response_model=OperationsResponse)
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def employee_profiles(
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists employee profiles."""
     return OperationsResponse(items=await service.employee_profiles(limit))
 
 
@@ -154,19 +125,21 @@ async def employee_profiles(
 @PermissionChecker([UserRole.ADMIN])
 async def create_employee_profile(
     body: EmployeeProfileCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Creates an employee profile."""
     return OperationResponse(data=await service.create_employee_profile(body.model_dump()))
 
 
 @router.get("/service/catalog", response_model=OperationsResponse)
 @PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
 async def service_catalog(
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(100, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists services offered by the service department."""
     return OperationsResponse(items=await service.catalog(limit))
 
 
@@ -175,9 +148,10 @@ async def service_catalog(
 async def create_appointment(
     body: AppointmentCreate,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=255)],
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Books a service appointment for the requesting customer."""
     return OperationResponse(
         data=await service.create_appointment(requesting_user.id, body.model_dump(), idempotency_key)
     )
@@ -186,10 +160,11 @@ async def create_appointment(
 @router.get("/service/appointments", response_model=OperationsResponse)
 @PermissionChecker([UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN])
 async def appointments(
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists service appointments visible to the requesting user."""
     user_id = requesting_user.id if requesting_user.role == UserRole.CUSTOMER else None
     return OperationsResponse(items=await service.appointments(user_id, limit))
 
@@ -199,9 +174,10 @@ async def appointments(
 async def change_appointment_status(
     appointment_id: UUID,
     body: AppointmentStatusUpdate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Changes the status of a service appointment."""
     return OperationResponse(data=await service.change_appointment_status(appointment_id, body.status))
 
 
@@ -209,9 +185,10 @@ async def change_appointment_status(
 @PermissionChecker([UserRole.CUSTOMER])
 async def delete_appointment(
     appointment_id: UUID,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> Response:
+    """Cancels a service appointment of the requesting customer."""
     await service.delete_appointment(requesting_user.id, appointment_id)
     return Response(status_code=204)
 
@@ -220,19 +197,21 @@ async def delete_appointment(
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def create_service_order(
     body: ServiceOrderCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Creates a service order."""
     return OperationResponse(data=await service.create_service_order(body.model_dump()))
 
 
 @router.get("/service/orders", response_model=OperationsResponse)
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def service_orders(
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(50, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists service orders."""
     return OperationsResponse(items=await service.service_orders(limit))
 
 
@@ -241,9 +220,10 @@ async def service_orders(
 async def add_service_item(
     order_id: UUID,
     body: ServiceItemCreate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Adds a work or part item to a service order."""
     return OperationResponse(data=await service.add_service_item(order_id, body.model_dump()))
 
 
@@ -252,9 +232,10 @@ async def add_service_item(
 async def change_service_order_status(
     order_id: UUID,
     body: ServiceStatusUpdate,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Changes the status of a service order."""
     return OperationResponse(data=await service.change_service_status(order_id, body.status))
 
 
@@ -262,21 +243,23 @@ async def change_service_order_status(
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def inventory(
     dealership_id: int,
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     below_reorder: bool = False,
     limit: int = Query(100, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists spare-part inventory of a dealership."""
     return OperationsResponse(items=await service.inventory(dealership_id, below_reorder, limit))
 
 
 @router.get("/parts", response_model=OperationsResponse)
 @PermissionChecker([UserRole.EMPLOYEE, UserRole.ADMIN])
 async def spare_parts(
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
     limit: int = Query(100, ge=1, le=100),
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
 ) -> OperationsResponse:
+    """Lists the spare-part catalog."""
     return OperationsResponse(items=await service.spare_parts(limit))
 
 
@@ -286,7 +269,8 @@ async def reserve_part(
     dealership_id: int,
     part_id: UUID,
     body: PartReservation,
-    requesting_user: User = Depends(get_current_user),
-    service: OperationsService = Depends(get_operations_service),
+    requesting_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IOperationsService, Depends(get_operations_service)],
 ) -> OperationResponse:
+    """Reserves a spare part from a dealership inventory."""
     return OperationResponse(data=await service.reserve_part(dealership_id, part_id, body.quantity))

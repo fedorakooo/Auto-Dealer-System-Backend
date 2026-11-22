@@ -13,12 +13,15 @@ from src.infrastructure.database.exceptions import DatabaseNotFoundError
 
 
 class CustomOrderRepository(ICustomOrderRepository):
-    def __init__(self, db_connection: IDatabaseConnection):
+    """PostgreSQL repository for custom orders."""
+
+    def __init__(self, db_connection: IDatabaseConnection) -> None:
         self._db = db_connection
 
     async def get_by_id(self, custom_order_id: UUID) -> CustomOrder | None:
+        """Returns one custom order by ID or None."""
         query = (
-            "SELECT id, customer_id, dealership_id, model_id, engine_id, transmission_id, "
+            "SELECT id, customer_id, dealership_id, model_id, trim_id, "
             "exterior_color, interior_color, status, estimated_price, final_price, notes, "
             "created_at, updated_at FROM get_custom_order_with_details($1::UUID, NULL) LIMIT 1"
         )
@@ -28,13 +31,15 @@ class CustomOrderRepository(ICustomOrderRepository):
         return self._row_to_custom_order(row)
 
     async def get_by_customer_id(self, customer_id: UUID) -> list[CustomOrder]:
+        """Returns custom orders by customer ID."""
         query = "SELECT * FROM custom_orders WHERE customer_id = $1 ORDER BY created_at DESC"
         rows = await self._db.fetch(query, str(customer_id))
         return [self._row_to_custom_order(row) for row in rows]
 
     async def get_by_dealership_id(self, dealership_id: int) -> list[CustomOrder]:
+        """Returns custom orders by dealership ID."""
         query = (
-            "SELECT id, customer_id, dealership_id, model_id, engine_id, transmission_id, "
+            "SELECT id, customer_id, dealership_id, model_id, trim_id, "
             "exterior_color, interior_color, status, estimated_price, final_price, notes, "
             "created_at, updated_at FROM get_custom_order_with_details(NULL, $1)"
         )
@@ -42,13 +47,14 @@ class CustomOrderRepository(ICustomOrderRepository):
         return [self._row_to_custom_order(row) for row in rows]
 
     async def create(self, custom_order: CustomOrder) -> CustomOrder:
+        """Creates a new custom order and returns the created custom order."""
         query = """
             INSERT INTO custom_orders (
-                id, customer_id, dealership_id, model_id, engine_id, transmission_id,
+                id, customer_id, dealership_id, model_id, trim_id,
                 exterior_color, interior_color, status, estimated_price, final_price,
                 notes, created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
         """
         row = await self._db.fetchrow(
@@ -57,8 +63,7 @@ class CustomOrderRepository(ICustomOrderRepository):
             str(custom_order.customer_id),
             custom_order.dealership_id,
             str(custom_order.model_id),
-            custom_order.engine_id,
-            custom_order.transmission_id,
+            str(custom_order.trim_id),
             custom_order.exterior_color,
             custom_order.interior_color,
             custom_order.status.value,
@@ -70,11 +75,12 @@ class CustomOrderRepository(ICustomOrderRepository):
         return self._row_to_custom_order(row)
 
     async def update(self, custom_order: CustomOrder) -> CustomOrder:
+        """Updates a custom order and returns the updated custom order."""
         query = """
             UPDATE custom_orders
-            SET customer_id = $2, dealership_id = $3, model_id = $4, engine_id = $5,
-                transmission_id = $6, exterior_color = $7, interior_color = $8, status = $9,
-                estimated_price = $10, final_price = $11, notes = $12, updated_at = $13
+            SET customer_id = $2, dealership_id = $3, model_id = $4, trim_id = $5,
+                exterior_color = $6, interior_color = $7, status = $8,
+                estimated_price = $9, final_price = $10, notes = $11, updated_at = $12
             WHERE id = $1
             RETURNING *
         """
@@ -84,8 +90,7 @@ class CustomOrderRepository(ICustomOrderRepository):
             str(custom_order.customer_id),
             custom_order.dealership_id,
             str(custom_order.model_id),
-            custom_order.engine_id,
-            custom_order.transmission_id,
+            str(custom_order.trim_id),
             custom_order.exterior_color,
             custom_order.interior_color,
             custom_order.status.value,
@@ -99,6 +104,7 @@ class CustomOrderRepository(ICustomOrderRepository):
         return self._row_to_custom_order(row)
 
     async def update_status(self, custom_order_id: UUID, new_status: CustomOrderStatus) -> CustomOrder:
+        """Updates custom order status and returns the updated custom order."""
         query = """
             UPDATE custom_orders
             SET status = $2, updated_at = $3
@@ -111,6 +117,7 @@ class CustomOrderRepository(ICustomOrderRepository):
         return self._row_to_custom_order(row)
 
     async def delete(self, custom_order_id: UUID) -> bool:
+        """Deletes a custom order by its ID."""
         query = "DELETE FROM custom_orders WHERE id = $1"
         result = await self._db.execute(query, str(custom_order_id))
         return result == "DELETE 1"
@@ -121,8 +128,7 @@ class CustomOrderRepository(ICustomOrderRepository):
             customer_id=parse_uuid(row["customer_id"]),
             dealership_id=row["dealership_id"],
             model_id=parse_uuid(row["model_id"]),
-            engine_id=row["engine_id"],
-            transmission_id=row["transmission_id"],
+            trim_id=parse_uuid(row["trim_id"]),
             exterior_color=row["exterior_color"],
             interior_color=row.get("interior_color"),
             status=CustomOrderStatus(row["status"]),
