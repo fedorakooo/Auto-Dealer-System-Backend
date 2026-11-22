@@ -49,7 +49,7 @@ def generate_csv_response(data: list[dict[str, Any]], filename: str) -> Streamin
         return StreamingResponse(iter(["No data"]), media_type="text/plain")
 
     output = io.StringIO()
-    keys = set()
+    keys: set[str] = set()
     for row in data:
         keys.update(row.keys())
 

@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID
 
 from src.application.abstractions.customer_service import ICustomerService
@@ -15,27 +16,28 @@ logger = get_logger(__name__)
 
 
 class CustomerService(ICustomerService):
-    def __init__(self, uow: IUnitOfWork, password_handler: IPasswordHandler):
+    """Service for customer operations."""
+
+    def __init__(self, uow: IUnitOfWork, password_handler: IPasswordHandler) -> None:
         self._uow = uow
         self._password_handler = password_handler
 
     async def create_customer(self, create_dto: CustomerCreateDTO) -> CustomerDTO:
-        logger.debug(f"Creating customer with email: {create_dto.email}")
+        """Create a new customer."""
+        logger.debug("Creating customer")
         async with self._uow as uow:
-            # Проверяем, не существует ли уже пользователь с таким email
             existing_user = await uow.user_repository.get_by_email(create_dto.email)
             if existing_user:
-                logger.warning(f"Customer creation failed: email {create_dto.email} already exists")
-                raise BusinessError(f"User with email {create_dto.email} already exists")
+                logger.warning("Customer creation failed: email already exists")
+                raise BusinessError("User with this email already exists")
 
-            # Проверяем, не существует ли уже пользователь с таким телефоном
             existing_user = await uow.user_repository.get_by_phone_number(create_dto.phone_number)
             if existing_user:
-                logger.warning(f"Customer creation failed: phone number {create_dto.phone_number} already exists")
-                raise BusinessError(f"User with phone number {create_dto.phone_number} already exists")
+                logger.warning("Customer creation failed: phone number already exists")
+                raise BusinessError("User with this phone number already exists")
 
-            # Создаем пользователя
-            hashed_password = self._password_handler.hash_password(create_dto.password)
+            # bcrypt is CPU-bound; keep it off the event loop.
+            hashed_password = await asyncio.to_thread(self._password_handler.hash_password, create_dto.password)
             user_create_dto = UserCreateDTO(
                 first_name=create_dto.first_name,
                 second_name=create_dto.second_name,
@@ -46,9 +48,8 @@ class CustomerService(ICustomerService):
             )
             user = UserMapper.from_create_dto_to_entity(user_create_dto, hashed_password)
             created_user = await uow.user_repository.create(user)
-            logger.info(f"User created successfully with id: {created_user.id}, email: {create_dto.email}")
+            logger.info(f"User created successfully with id: {created_user.id}")
 
-            # Создаем customer с user_id созданного пользователя
             customer = CustomerMapper.from_create_dto_to_entity(create_dto, created_user.id)
             created_customer = await uow.customer_repository.create(customer)
             logger.info(f"Customer created successfully with id: {created_customer.id}, user_id: {created_user.id}")
@@ -56,6 +57,7 @@ class CustomerService(ICustomerService):
         return CustomerMapper.from_entity_to_dto(created_customer)
 
     async def get_customer(self, customer_id: UUID) -> CustomerDTO:
+        """Get customer by ID."""
         async with self._uow as uow:
             customer = await uow.customer_repository.get_by_id(customer_id)
             if not customer:
@@ -63,6 +65,7 @@ class CustomerService(ICustomerService):
         return CustomerMapper.from_entity_to_dto(customer)
 
     async def get_customer_by_user_id(self, user_id: UUID) -> CustomerDTO:
+        """Get customer by user ID."""
         async with self._uow as uow:
             customer = await uow.customer_repository.get_by_user_id(user_id)
             if not customer:
@@ -70,6 +73,7 @@ class CustomerService(ICustomerService):
         return CustomerMapper.from_entity_to_dto(customer)
 
     async def update_customer(self, customer_id: UUID, update_dto: CustomerUpdateDTO) -> CustomerDTO:
+        """Update customer."""
         async with self._uow as uow:
             customer = await uow.customer_repository.get_by_id(customer_id)
             if not customer:
@@ -81,6 +85,7 @@ class CustomerService(ICustomerService):
         return CustomerMapper.from_entity_to_dto(saved_customer)
 
     async def delete_customer(self, customer_id: UUID) -> bool:
+        """Delete customer."""
         async with self._uow as uow:
             customer = await uow.customer_repository.get_by_id(customer_id)
             if not customer:

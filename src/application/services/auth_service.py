@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -21,6 +22,8 @@ logger = get_logger(__name__)
 
 
 class AuthService(IAuthService):
+    """Service for authentication and token sessions."""
+
     def __init__(
         self,
         uow: IUnitOfWork,
@@ -28,7 +31,7 @@ class AuthService(IAuthService):
         token_handler: ITokenHandler,
         redis_client: IRedisClient,
         session_repository: ISessionRepository,
-    ):
+    ) -> None:
         self._uow = uow
         self._password_handler = password_handler
         self._token_handler = token_handler
@@ -36,38 +39,45 @@ class AuthService(IAuthService):
         self._session_repo = session_repository
 
     async def login(self, login_dto: LoginDTO) -> TokenDTO:
-        logger.debug(f"Processing login for email: {login_dto.email}")
+        """Authenticate user and return tokens."""
+        logger.debug("Processing login request")
 
         blacklist_key = f"auth:blacklist:{login_dto.email}"
         attempts_key = f"auth:attempts:{login_dto.email}"
 
         if await self._redis_client.exists(blacklist_key):
-            logger.warning(f"Login failed: user blocked due to too many failed attempts: {login_dto.email}")
-            raise UserBlockedError(email=login_dto.email)
+            logger.warning("Login failed: login temporarily blocked due to too many failed attempts")
+            raise UserBlockedError()
 
         async with self._uow as uow:
             user = await uow.user_repository.get_by_email(login_dto.email)
 
             is_valid_password = False
             if user:
-                is_valid_password = self._password_handler.validate_password(login_dto.password, user.hashed_password)
+                # bcrypt is CPU-bound; keep it off the event loop.
+                is_valid_password = await asyncio.to_thread(
+                    self._password_handler.validate_password, login_dto.password, user.hashed_password
+                )
 
             if not user or not is_valid_password:
-                logger.warning(f"Login failed: invalid credentials for email: {login_dto.email}")
+                if user:
+                    logger.warning(f"Login failed: invalid password for user id: {user.id}")
+                else:
+                    logger.warning("Login failed: unknown login")
                 attempts = await self._redis_client.incr(attempts_key)
                 if attempts == 1:
                     await self._redis_client.expire(attempts_key, 600)
 
                 if attempts >= 3:
-                    logger.warning(f"User {login_dto.email} exceeded login attempts. Blacklisting for 10 minutes.")
+                    logger.warning("Login attempts exceeded. Blacklisting login for 10 minutes.")
                     await self._redis_client.setex(blacklist_key, 600, "1")
                     await self._redis_client.delete(attempts_key)
 
                 raise InvalidCredentialsError()
 
             if not user.is_active:
-                logger.warning(f"Login failed: user inactive for email: {login_dto.email}")
-                raise UserInactiveError(email=login_dto.email)
+                logger.warning(f"Login failed: user inactive, id: {user.id}")
+                raise UserInactiveError(user_id=str(user.id))
 
         await self._redis_client.delete(attempts_key)
 
@@ -103,7 +113,7 @@ class AuthService(IAuthService):
             },
             expire_minutes=settings.jwt_settings.refresh_token_expire_minutes,
         )
-        logger.info(f"Login successful for user id: {user.id}, email: {user.email}")
+        logger.info(f"Login successful for user id: {user.id}")
         return TokenDTO(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -111,6 +121,7 @@ class AuthService(IAuthService):
         )
 
     async def refresh_token(self, refresh_dto: RefreshTokenDTO) -> TokenDTO:
+        """Refresh access token using refresh token."""
         logger.debug("Processing refresh token request")
         try:
             payload = self._token_handler.decode_jwt(refresh_dto.refresh_token)
@@ -144,7 +155,6 @@ class AuthService(IAuthService):
                     raise UserInactiveError(user_id=str(user_id))
 
             logger.debug(f"Generating new tokens for user id: {user.id}")
-            # Invalidate old session
             await self._session_repo.delete(UUID(jti))
 
             new_session_id = uuid4()
@@ -189,10 +199,11 @@ class AuthService(IAuthService):
                 token_type="bearer",
             )
         except (NotFoundError, ValidationError, UserInactiveError, InvalidTokenError) as exc:
-            logger.warning(f"Refresh token failed: {str(exc)}")
+            logger.warning(f"Refresh token failed: {type(exc).__name__}")
             raise ValidationError("Invalid refresh token") from exc
 
     async def logout(self, refresh_token: str) -> None:
+        """Invalidate the session associated with the refresh token."""
         logger.debug("Processing logout request")
         try:
             payload = self._token_handler.decode_jwt(refresh_token)
@@ -201,4 +212,5 @@ class AuthService(IAuthService):
                 await self._session_repo.delete(UUID(jti))
                 logger.info(f"Logout successful, deleted session: {jti}")
         except Exception as exc:
-            logger.warning(f"Logout failed (token might already be discarded): {exc}")
+            # Logout is idempotent: an invalid or already discarded token is not an error.
+            logger.warning(f"Logout failed (token might already be discarded): {type(exc).__name__}")
