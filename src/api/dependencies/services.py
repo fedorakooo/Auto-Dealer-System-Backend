@@ -12,6 +12,8 @@ from src.application.abstractions.auth_service import IAuthService
 from src.application.abstractions.city_service import ICityService
 from src.application.abstractions.custom_order_service import ICustomOrderService
 from src.application.abstractions.customer_service import ICustomerService
+from src.application.abstractions.dealership_media_service import IDealershipMediaService
+from src.application.abstractions.dealership_review_service import IDealershipReviewService
 from src.application.abstractions.dealership_service import IDealershipService
 from src.application.abstractions.favorite_service import IFavoriteService
 from src.application.abstractions.feature_service import IFeatureService
@@ -29,6 +31,8 @@ from src.application.services.auth_service import AuthService
 from src.application.services.city_service import CityService
 from src.application.services.custom_order_service import CustomOrderService
 from src.application.services.customer_service import CustomerService
+from src.application.services.dealership_media_service import DealershipMediaService
+from src.application.services.dealership_review_service import DealershipReviewService
 from src.application.services.dealership_service import DealershipService
 from src.application.services.favorite_service import FavoriteService
 from src.application.services.feature_service import FeatureService
@@ -144,6 +148,22 @@ def get_dealership_service(
 ) -> IDealershipService:
     """Provides the dealership service."""
     return DealershipService(uow=uow, redis_client=redis_client)
+
+
+def get_dealership_media_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+    s3_client: Annotated[IS3Client | None, Depends(get_s3_client)],
+) -> IDealershipMediaService:
+    """Provides the dealership media service."""
+    return DealershipMediaService(uow=uow, s3_client=s3_client)
+
+
+def get_dealership_review_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+) -> IDealershipReviewService:
+    """Provides the dealership review service."""
+    return DealershipReviewService(uow=uow)
+
 
 
 def get_feature_service(

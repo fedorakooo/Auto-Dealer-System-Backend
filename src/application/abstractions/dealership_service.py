@@ -5,6 +5,7 @@ from src.application.dtos.dealership_dto import (
     DealershipDTO,
     DealershipUpdateDTO,
 )
+from src.domain.entities.user import User
 
 
 class IDealershipService(ABC):
@@ -13,39 +14,37 @@ class IDealershipService(ABC):
     @abstractmethod
     async def create_dealership(self, create_dto: DealershipCreateDTO) -> DealershipDTO:
         """Create a new dealership."""
-        pass
 
     @abstractmethod
     async def get_dealership(self, dealership_id: int) -> DealershipDTO:
         """Get dealership by ID."""
-        pass
 
     @abstractmethod
     async def get_all_dealerships(self, page: int = 1, limit: int = 20) -> tuple[list[DealershipDTO], int]:
         """Get all dealerships with pagination."""
-        pass
 
     @abstractmethod
     async def get_active_dealerships(self) -> list[DealershipDTO]:
         """Get active dealerships."""
-        pass
 
     @abstractmethod
     async def get_dealerships_by_city(self, city_id: int) -> list[DealershipDTO]:
         """Get dealerships by city ID."""
-        pass
 
     @abstractmethod
     async def get_dealerships_by_country(self, country: str) -> list[DealershipDTO]:
         """Get dealerships by country."""
-        pass
 
     @abstractmethod
-    async def update_dealership(self, dealership_id: int, update_dto: DealershipUpdateDTO) -> DealershipDTO:
-        """Update dealership."""
-        pass
+    async def get_managed_dealerships(self, requesting_user: User) -> list[DealershipDTO]:
+        """Get dealerships the user may manage: all for an admin, the own one for an employee."""
+
+    @abstractmethod
+    async def update_dealership(
+        self, dealership_id: int, update_dto: DealershipUpdateDTO, requesting_user: User
+    ) -> DealershipDTO:
+        """Update dealership; only an admin or an employee of this dealership may do it."""
 
     @abstractmethod
     async def delete_dealership(self, dealership_id: int) -> bool:
         """Delete dealership."""
-        pass

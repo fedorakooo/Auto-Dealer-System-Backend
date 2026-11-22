@@ -7,6 +7,8 @@ from src.api.v1.endpoints import (
     cities,
     custom_orders,
     customers,
+    dealership_media,
+    dealership_reviews,
     dealerships,
     favorites,
     features,
@@ -32,6 +34,8 @@ router.include_router(users.router)
 router.include_router(customers.router)
 router.include_router(cities.router)
 router.include_router(dealerships.router)
+router.include_router(dealership_media.router)
+router.include_router(dealership_reviews.router)
 router.include_router(models.router)
 router.include_router(model_media.router)
 router.include_router(trims.router)

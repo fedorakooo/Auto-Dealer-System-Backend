@@ -8,11 +8,19 @@ from src.application.dtos.dealership_dto import (
 from src.domain.entities.dealership import Dealership
 
 
+def _normalize_text(value: str | None) -> str | None:
+    """Blank text clears the field."""
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 class DealershipMapper:
     """Mapper for converting between Dealership DTOs and Entities."""
 
     @staticmethod
     def from_entity_to_dto(dealership: Dealership) -> DealershipDTO:
+        """Maps a dealership entity to a DTO."""
         return DealershipDTO(
             id=dealership.id,
             name=dealership.name,
@@ -24,11 +32,13 @@ class DealershipMapper:
             latitude=dealership.latitude,
             longitude=dealership.longitude,
             is_active=dealership.is_active,
+            description=dealership.description,
             updated_at=dealership.updated_at,
         )
 
     @staticmethod
     def from_create_dto_to_entity(create_dto: DealershipCreateDTO, dealership_id: int) -> Dealership:
+        """Builds a new dealership entity from a create DTO."""
         return Dealership(
             id=dealership_id,
             name=create_dto.name,
@@ -40,6 +50,7 @@ class DealershipMapper:
             latitude=create_dto.latitude,
             longitude=create_dto.longitude,
             is_active=create_dto.is_active,
+            description=_normalize_text(create_dto.description),
             updated_at=None,
         )
 
@@ -48,6 +59,7 @@ class DealershipMapper:
         dealership: Dealership,
         update_dto: DealershipUpdateDTO,
     ) -> Dealership:
+        """Applies an update DTO to a dealership entity."""
         return Dealership(
             id=dealership.id,
             name=update_dto.name if update_dto.name is not None else dealership.name,
@@ -61,5 +73,10 @@ class DealershipMapper:
             latitude=update_dto.latitude if update_dto.latitude is not None else dealership.latitude,
             longitude=update_dto.longitude if update_dto.longitude is not None else dealership.longitude,
             is_active=update_dto.is_active if update_dto.is_active is not None else dealership.is_active,
+            description=(
+                _normalize_text(update_dto.description)
+                if update_dto.description is not None
+                else dealership.description
+            ),
             updated_at=datetime.utcnow(),
         )

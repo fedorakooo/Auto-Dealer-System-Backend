@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -54,7 +55,10 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
             logger.warning("Skipping employee entry #%d: empty password in YAML", index)
             continue
 
-        if await repo.get_by_email(email):
+        existing = await repo.get_by_email(email)
+        if existing:
+            if existing.role == UserRole.EMPLOYEE:
+                await _ensure_employee_profile(db, existing.id, raw, index)
             continue
 
         hashed = password_handler.hash_password(password_plain)
@@ -89,3 +93,37 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
                 "Skipped employee entry #%d: email or phone already exists for another user",
                 index,
             )
+            continue
+
+        await _ensure_employee_profile(db, user_id, raw, index)
+
+
+async def _ensure_employee_profile(db: IDatabaseConnection, user_id: UUID, raw: dict[str, Any], index: int) -> None:
+    """Binds the employee to a dealership once; an existing profile is never overwritten."""
+    if raw.get("dealership_id") is None:
+        return
+    try:
+        dealership_id = int(raw["dealership_id"])
+    except (TypeError, ValueError):
+        logger.warning("Invalid dealership_id for employee entry #%d", index)
+        return
+
+    if await db.fetchval("SELECT 1 FROM employee_profiles WHERE user_id = $1", str(user_id)):
+        return
+    if not await db.fetchval("SELECT 1 FROM dealerships WHERE id = $1", dealership_id):
+        logger.warning(
+            "Employee entry #%d: dealership %d does not exist yet, profile will be created on next start",
+            index,
+            dealership_id,
+        )
+        return
+
+    position = str(raw.get("position") or "Sales manager").strip()
+    await db.execute(
+        "INSERT INTO employee_profiles (user_id, dealership_id, position, hire_date) "
+        "VALUES ($1, $2, $3, CURRENT_DATE) ON CONFLICT (user_id) DO NOTHING",
+        str(user_id),
+        dealership_id,
+        position,
+    )
+    logger.info("Seeded employee profile for entry #%d, dealership: %d", index, dealership_id)

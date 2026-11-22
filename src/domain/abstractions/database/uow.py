@@ -4,7 +4,9 @@ from types import TracebackType
 from src.domain.abstractions.database.repositories.city_repository import ICityRepository
 from src.domain.abstractions.database.repositories.custom_order_repository import ICustomOrderRepository
 from src.domain.abstractions.database.repositories.customer_repository import ICustomerRepository
+from src.domain.abstractions.database.repositories.dealership_media_repository import IDealershipMediaRepository
 from src.domain.abstractions.database.repositories.dealership_repository import IDealershipRepository
+from src.domain.abstractions.database.repositories.dealership_review_repository import IDealershipReviewRepository
 from src.domain.abstractions.database.repositories.engine_repository import IEngineRepository
 from src.domain.abstractions.database.repositories.favorite_repository import IFavoriteRepository
 from src.domain.abstractions.database.repositories.feature_repository import IFeatureRepository
@@ -61,7 +63,17 @@ class IUnitOfWork(ABC):
     @abstractmethod
     def dealership_repository(self) -> IDealershipRepository:
         """Returns the dealership repository."""
-        pass
+
+    @property
+    @abstractmethod
+    def dealership_media_repository(self) -> IDealershipMediaRepository:
+        """Returns the dealership media repository."""
+
+    @property
+    @abstractmethod
+    def dealership_review_repository(self) -> IDealershipReviewRepository:
+        """Returns the dealership review repository."""
+
 
     @property
     @abstractmethod
