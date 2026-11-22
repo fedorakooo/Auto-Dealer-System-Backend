@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from src.api.dependencies.mongodb import get_mongodb_client
 from src.api.dependencies.services import create_log_service
 from src.application.exceptions.errors import BusinessError, NotFoundError, ValidationError
+from src.application.exceptions.errors import PermissionError as ApplicationPermissionError
 from src.domain.exceptions.auth_errors import ForbiddenError, LoginError
 from src.domain.exceptions.health_check_errors import HealthCheckError
 from src.domain.exceptions.token_errors import TokenError
@@ -98,6 +99,15 @@ def exception_container(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(ApplicationPermissionError)
+    async def application_permission_error_handler(request: Request, exc: ApplicationPermissionError) -> JSONResponse:
+        _log_error_async(request, exc)
+        logger.warning(f"Permission denied: {exc!s}")
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": exc.message},
         )
 
     @app.exception_handler(ValidationError)
