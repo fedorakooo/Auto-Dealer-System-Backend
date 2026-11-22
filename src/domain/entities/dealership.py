@@ -5,6 +5,8 @@ from decimal import Decimal
 
 @dataclass
 class Dealership:
+    """Dealership entity."""
+
     id: int
     name: str
     address: str
@@ -15,4 +17,5 @@ class Dealership:
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     is_active: bool = True
+    description: str | None = None
     updated_at: datetime | None = None

@@ -6,7 +6,9 @@ from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.domain.abstractions.database.repositories.city_repository import ICityRepository
 from src.domain.abstractions.database.repositories.custom_order_repository import ICustomOrderRepository
 from src.domain.abstractions.database.repositories.customer_repository import ICustomerRepository
+from src.domain.abstractions.database.repositories.dealership_media_repository import IDealershipMediaRepository
 from src.domain.abstractions.database.repositories.dealership_repository import IDealershipRepository
+from src.domain.abstractions.database.repositories.dealership_review_repository import IDealershipReviewRepository
 from src.domain.abstractions.database.repositories.engine_repository import IEngineRepository
 from src.domain.abstractions.database.repositories.favorite_repository import IFavoriteRepository
 from src.domain.abstractions.database.repositories.feature_repository import IFeatureRepository
@@ -27,7 +29,9 @@ from src.infrastructure.database.exceptions import DatabaseTransactionError, Uni
 from src.infrastructure.database.repositories.city_repository import CityRepository
 from src.infrastructure.database.repositories.custom_order_repository import CustomOrderRepository
 from src.infrastructure.database.repositories.customer_repository import CustomerRepository
+from src.infrastructure.database.repositories.dealership_media_repository import DealershipMediaRepository
 from src.infrastructure.database.repositories.dealership_repository import DealershipRepository
+from src.infrastructure.database.repositories.dealership_review_repository import DealershipReviewRepository
 from src.infrastructure.database.repositories.engine_repository import EngineRepository
 from src.infrastructure.database.repositories.favorite_repository import FavoriteRepository
 from src.infrastructure.database.repositories.feature_repository import FeatureRepository
@@ -59,6 +63,8 @@ class UnitOfWork(IUnitOfWork):
         self._customer_repository: ICustomerRepository | None = None
         self._city_repository: ICityRepository | None = None
         self._dealership_repository: IDealershipRepository | None = None
+        self._dealership_media_repository: IDealershipMediaRepository | None = None
+        self._dealership_review_repository: IDealershipReviewRepository | None = None
         self._engine_repository: IEngineRepository | None = None
         self._transmission_repository: ITransmissionRepository | None = None
         self._model_repository: IModelRepository | None = None
@@ -86,6 +92,8 @@ class UnitOfWork(IUnitOfWork):
         self._customer_repository = CustomerRepository(self._transactional_db)
         self._city_repository = CityRepository(self._transactional_db)
         self._dealership_repository = DealershipRepository(self._transactional_db)
+        self._dealership_media_repository = DealershipMediaRepository(self._transactional_db)
+        self._dealership_review_repository = DealershipReviewRepository(self._transactional_db)
         self._engine_repository = EngineRepository(self._transactional_db)
         self._transmission_repository = TransmissionRepository(self._transactional_db)
         self._model_repository = ModelRepository(self._transactional_db)
@@ -169,6 +177,21 @@ class UnitOfWork(IUnitOfWork):
         if self._dealership_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._dealership_repository
+
+    @property
+    def dealership_media_repository(self) -> IDealershipMediaRepository:
+        """Returns the dealership media repository."""
+        if self._dealership_media_repository is None:
+            raise UnitOfWorkNotStartedError()
+        return self._dealership_media_repository
+
+    @property
+    def dealership_review_repository(self) -> IDealershipReviewRepository:
+        """Returns the dealership review repository."""
+        if self._dealership_review_repository is None:
+            raise UnitOfWorkNotStartedError()
+        return self._dealership_review_repository
+
 
     @property
     def engine_repository(self) -> IEngineRepository:

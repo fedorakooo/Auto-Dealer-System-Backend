@@ -213,6 +213,34 @@ Enforced by database triggers (`0003_vehicle_lifecycle_and_order_integrity.sql`)
 - `0004_models_and_trims.sql` converts existing data: every old model becomes one model with one trim named after its engine;
   custom orders that asked for another engine/gearbox pair get an extra trim, so nothing is lost.
 
+### Dealership pages
+
+`0006_dealership_pages.sql` adds what a dealership page needs: `dealerships.description`, a photo gallery
+(`dealership_media`, files in S3 under `dealerships/{id}/`), customer reviews (`dealership_reviews`, one per customer and
+dealership) and a flat comment thread under each review (`dealership_review_comments`).
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/dealerships`, `/dealerships/{id}` | public | Also returns `description`, `rating_average`, `reviews_count`, `cover_url` |
+| PATCH | `/dealerships/{id}` | dealership staff | Edit description, contacts, opening hours |
+| GET | `/dealerships/managed` | employee/admin | Dealerships the user may manage |
+| GET | `/dealerships/{id}/media`, `.../media/{media_id}/file` | public | Gallery and image files |
+| POST, PATCH, DELETE | `/dealerships/{id}/media[/{media_id}]` | dealership staff | Upload (multipart), caption/order, delete |
+| GET | `/dealerships/{id}/reviews?page&limit&include_hidden` | public | Reviews with comments and the rating summary; `include_hidden` is staff only |
+| POST | `/dealerships/{id}/reviews` | customer | One review per dealership; the customer comes from the token |
+| PATCH | `/dealerships/{id}/reviews/{review_id}` | review author | Edit rating, title, comment |
+| DELETE | `/dealerships/{id}/reviews/{review_id}` | author or admin | Delete with its comments |
+| PATCH | `/dealerships/{id}/reviews/{review_id}/visibility` | dealership staff | Hide or show (moderation) |
+| POST | `/dealerships/{id}/reviews/{review_id}/comments` | author or dealership staff | Staff replies are marked `is_official` |
+| DELETE | `/dealerships/{id}/reviews/{review_id}/comments/{comment_id}` | comment author or dealership staff | |
+
+- **Dealership staff** means an admin, or an employee whose active `employee_profiles` row points to that dealership.
+  Seeded employees get their profile from `dealership_id`/`position` in `employees.yaml` (created on startup once the
+  dealership exists; an existing profile is never overwritten).
+- Hidden reviews are excluded from the public list and from the rating, but their author still sees them.
+- A review is marked `is_verified_customer` when its author has a non-cancelled order or a completed test drive in that
+  dealership. The viewer's own review is returned first.
+
 ## API overview
 
 All API routes are under `/api/v1` (see `src/api/v1/router.py`).
@@ -222,7 +250,7 @@ Primary routers:
 - `/auth` (signup/signin/refresh/logout)
 - `/health`
 - `/users`, `/customers`
-- `/cities`, `/dealerships`
+- `/cities`, `/dealerships` (+ `/dealerships/{id}/media`, `/dealerships/{id}/reviews`)
 - `/models`, `/features`, `/vehicles`
 - `/orders`, `/custom-orders`
 - `/reviews`, `/test-drives`, `/favorites`
