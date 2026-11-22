@@ -1,189 +1,121 @@
+import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import asyncpg
 
-EXTENDED_OBJECTS = frozenset(
-    {
-        "employment_status",
-        "vehicle_lifecycle_status",
-        "payment_method",
-        "payment_status",
-        "service_appointment_status",
-        "service_order_status",
-        "outbox_event_status",
-        "employee_profiles",
-        "customer_addresses",
-        "vehicle_status_history",
-        "vehicle_price_history",
-        "order_payments",
-        "order_status_history",
-        "test_drive_status_history",
-        "service_catalog",
-        "service_appointments",
-        "service_orders",
-        "service_order_items",
-        "spare_parts",
-        "dealership_part_inventory",
-        "outbox_events",
-        "idempotency_keys",
-    }
-)
+MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "db" / "migrations"
+MIGRATION_FILE_PATTERN = re.compile(r"^(?P<version>\d{4})_(?P<name>[a-z0-9_]+)\.sql$")
+LOCK_QUERY = "SELECT pg_advisory_lock(hashtext('auto_dealer_schema_migrations'))"
+UNLOCK_QUERY = "SELECT pg_advisory_unlock(hashtext('auto_dealer_schema_migrations'))"
 
-OPERATIONAL_MARKERS = frozenset(
+# Rows written by the previous heuristic migrator; together they equal the current baseline.
+LEGACY_MIGRATION_NAMES = frozenset(
     {
-        "record_vehicle_price_history",
-        "record_order_status_history",
-        "record_test_drive_status_history",
-        "enforce_order_payment_total",
-        "refresh_service_order_total",
-        "insert into vehicle_price_history",
-        "insert into vehicle_status_history",
-        "insert into order_status_history",
-        "insert into test_drive_status_history",
-        "insert into service_catalog",
-        "insert into spare_parts",
-        "insert into dealership_part_inventory",
+        "legacy_19_table_baseline",
+        "extended_34_table_architecture",
+        "history_backfill_and_integrity_guards",
     }
 )
+BASELINE_VERSION = 1
+BASELINE_MARKER_TABLES = frozenset({"users", "vehicles", "orders", "outbox_events"})
 
 
 @dataclass(frozen=True)
 class Migration:
+    """SQL migration file with its version and checksum."""
+
     version: int
     name: str
-    statements: tuple[str, ...]
+    sql: str
+    checksum: str
 
 
-def _split_sql(source: str) -> tuple[str, ...]:
-    statements: list[str] = []
-    current: list[str] = []
-    in_dollar_quote = False
-    index = 0
-    while index < len(source):
-        if source.startswith("$$", index):
-            in_dollar_quote = not in_dollar_quote
-            current.append("$$")
-            index += 2
-            continue
-        character = source[index]
-        current.append(character)
-        if character == ";" and not in_dollar_quote:
-            statement = "".join(current).strip()
-            if statement:
-                statements.append(statement)
-            current = []
-        index += 1
-    remainder = "".join(current).strip()
-    if remainder:
-        statements.append(remainder)
-    return tuple(statements)
+def load_migrations(directory: Path | None = None) -> tuple[Migration, ...]:
+    """Loads migration files from the directory ordered by version."""
+    migrations: list[Migration] = []
+    for path in sorted((directory or MIGRATIONS_DIR).glob("*.sql")):
+        match = MIGRATION_FILE_PATTERN.match(path.name)
+        if match is None:
+            raise ValueError(f"Invalid migration file name: {path.name}")
+        sql = path.read_text(encoding="utf-8")
+        checksum = hashlib.sha256(sql.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+        migrations.append(Migration(int(match["version"]), match["name"], sql, checksum))
+    versions = [migration.version for migration in migrations]
+    if len(versions) != len(set(versions)):
+        raise ValueError("Duplicate migration versions found")
+    return tuple(migrations)
 
 
-def load_migrations(schema_path: Path | None = None) -> tuple[Migration, ...]:
-    path = schema_path or Path(__file__).resolve().parents[3] / "db" / "sql" / "01-schema.sql"
-    statements = _split_sql(path.read_text(encoding="utf-8"))
-    baseline: list[str] = []
-    extension: list[str] = []
-    operational: list[str] = []
-    for statement in statements:
-        normalized = statement.lower()
-        if any(marker in normalized for marker in OPERATIONAL_MARKERS):
-            target = operational
-        elif any(name in normalized for name in EXTENDED_OBJECTS):
-            target = extension
-        else:
-            target = baseline
-        target.append(statement)
-    return (
-        Migration(1, "legacy_19_table_baseline", tuple(baseline)),
-        Migration(2, "extended_34_table_architecture", tuple(extension)),
-        Migration(3, "history_backfill_and_integrity_guards", tuple(operational)),
-    )
-
-
-async def migrate(connection: asyncpg.Connection, schema_path: Path | None = None) -> list[int]:
-    await connection.execute("SELECT pg_advisory_lock(hashtext('auto_dealer_schema_migrations'))")
-    try:
-        await connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                version INTEGER PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-            """
+async def _ensure_migrations_table(connection: asyncpg.Connection) -> None:
+    await connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-        applied_rows = await connection.fetch("SELECT version FROM schema_migrations")
-        applied_versions = {row["version"] for row in applied_rows}
-        if not applied_versions:
-            table_rows = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()")
-            existing_tables = {row["tablename"] for row in table_rows}
-            legacy_tables = {
-                "users",
-                "customers",
-                "cities",
-                "dealerships",
-                "body_types",
-                "engines",
-                "transmissions",
-                "models",
-                "features",
-                "model_features",
-                "vehicles",
-                "orders",
-                "custom_orders",
-                "custom_order_features",
-                "vehicle_media",
-                "model_media",
-                "favorites",
-                "reviews",
-                "test_drive_requests",
-            }
-            extended_tables = {
-                name
-                for name in EXTENDED_OBJECTS
-                if name
-                not in {
-                    "employment_status",
-                    "vehicle_lifecycle_status",
-                    "payment_method",
-                    "payment_status",
-                    "service_appointment_status",
-                    "service_order_status",
-                    "outbox_event_status",
-                }
-            }
-            if legacy_tables <= existing_tables:
-                await connection.execute(
-                    "INSERT INTO schema_migrations(version, name) VALUES (1, 'legacy_19_table_baseline')"
+        """
+    )
+    await connection.execute("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum VARCHAR(64)")
+
+
+async def _adopt_existing_database(connection: asyncpg.Connection, applied: dict[int, asyncpg.Record]) -> None:
+    """Register databases created before file-based migrations existed as already at the baseline."""
+    legacy_names = {row["name"] for row in applied.values() if row["name"] in LEGACY_MIGRATION_NAMES}
+    if legacy_names:
+        if legacy_names != LEGACY_MIGRATION_NAMES:
+            raise RuntimeError(
+                f"Database has a partially applied legacy schema ({sorted(legacy_names)}); fix it manually"
+            )
+        async with connection.transaction():
+            await connection.execute("DELETE FROM schema_migrations WHERE name = ANY($1::text[])", list(legacy_names))
+            await connection.execute(
+                "INSERT INTO schema_migrations(version, name) VALUES ($1, 'baseline')", BASELINE_VERSION
+            )
+        return
+    if applied:
+        return
+    rows = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()")
+    if {row["tablename"] for row in rows} >= BASELINE_MARKER_TABLES:
+        await connection.execute(
+            "INSERT INTO schema_migrations(version, name) VALUES ($1, 'baseline')", BASELINE_VERSION
+        )
+
+
+async def migrate(connection: asyncpg.Connection, migrations_dir: Path | None = None) -> list[int]:
+    """Applies pending migrations and returns the versions applied."""
+    migrations = load_migrations(migrations_dir)
+    await connection.execute(LOCK_QUERY)
+    try:
+        await _ensure_migrations_table(connection)
+        rows = await connection.fetch("SELECT version, name, checksum FROM schema_migrations")
+        await _adopt_existing_database(connection, {row["version"]: row for row in rows})
+        rows = await connection.fetch("SELECT version, name, checksum FROM schema_migrations")
+        applied = {row["version"]: row for row in rows}
+
+        for migration in migrations:
+            row = applied.get(migration.version)
+            if row is not None and row["checksum"] not in (None, migration.checksum):
+                raise RuntimeError(
+                    f"Migration {migration.version:04d}_{migration.name} was modified after it was applied; "
+                    "add a new migration instead"
                 )
-                applied_versions.add(1)
-            if extended_tables <= existing_tables:
-                await connection.execute(
-                    "INSERT INTO schema_migrations(version, name) VALUES (2, 'extended_34_table_architecture')"
-                )
-                applied_versions.add(2)
+
         newly_applied: list[int] = []
-        for migration in load_migrations(schema_path):
-            if migration.version in applied_versions:
+        for migration in migrations:
+            if migration.version in applied:
                 continue
-            transaction = connection.transaction()
-            await transaction.start()
-            try:
-                for statement in migration.statements:
-                    await connection.execute(statement)
+            async with connection.transaction():
+                await connection.execute(migration.sql)
                 await connection.execute(
-                    "INSERT INTO schema_migrations(version, name) VALUES ($1, $2)",
+                    "INSERT INTO schema_migrations(version, name, checksum) VALUES ($1, $2, $3)",
                     migration.version,
                     migration.name,
+                    migration.checksum,
                 )
-            except Exception:
-                await transaction.rollback()
-                raise
-            else:
-                await transaction.commit()
-                newly_applied.append(migration.version)
+            newly_applied.append(migration.version)
         return newly_applied
     finally:
-        await connection.execute("SELECT pg_advisory_unlock(hashtext('auto_dealer_schema_migrations'))")
+        await connection.execute(UNLOCK_QUERY)

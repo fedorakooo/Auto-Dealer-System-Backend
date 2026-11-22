@@ -30,13 +30,6 @@ services:
       - POSTGRES_DB=${POSTGRES_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/sql/02-data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
-      - ./db/sql/03-dealership.sql:/docker-entrypoint-initdb.d/03-dealership.sql:ro
-      - ./db/sql/03-models.sql:/docker-entrypoint-initdb.d/03-models.sql:ro
-      - ./db/sql/03-users.sql:/docker-entrypoint-initdb.d/03-users.sql:ro
-      - ./db/sql/04-tasks.sql:/docker-entrypoint-initdb.d/04-tasks.sql:ro
-      - ./db/sql/05-tasks.sql:/docker-entrypoint-initdb.d/05-tasks.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
