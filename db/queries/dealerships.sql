@@ -64,9 +64,10 @@ SELECT v.*, m.name, b.name as body_type, e.name as engine_name, t.name as transm
 FROM vehicles v
 LEFT JOIN models m ON m.id = v.model_id
 LEFT JOIN body_types b ON b.id = m.body_type_id
-LEFT JOIN engines e ON e.id = m.engine_id
-LEFT JOIN transmissions t ON t.id = m.transmission_id
-WHERE v.dealership_id = 1 AND v.is_active = true;
+LEFT JOIN trims tr ON tr.id = v.trim_id
+LEFT JOIN engines e ON e.id = tr.engine_id
+LEFT JOIN transmissions t ON t.id = tr.transmission_id
+WHERE v.dealership_id = 1 AND v.status = 'in_stock';
 
 
 -- Get orders for specific dealership
@@ -85,8 +86,9 @@ FROM custom_orders co
 LEFT JOIN customers c ON c.id = co.customer_id
 LEFT JOIN users u ON u.id = c.user_id
 LEFT JOIN models m ON m.id = co.model_id
-LEFT JOIN engines e ON e.id = co.engine_id
-LEFT JOIN transmissions t ON t.id = co.transmission_id
+LEFT JOIN trims tr ON tr.id = co.trim_id
+LEFT JOIN engines e ON e.id = tr.engine_id
+LEFT JOIN transmissions t ON t.id = tr.transmission_id
 WHERE co.dealership_id = 1;
 
 

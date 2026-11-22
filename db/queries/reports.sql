@@ -35,7 +35,7 @@ GROUP BY m.id, m.name, d.id, d.name
 ORDER BY avg_price DESC;
 
 
--- Find all models whose average price of active vehicles (is_active = true) is higher than the average price across all models. Show the average price and vehicle count
+-- Find all models whose average price of active vehicles (status = 'in_stock') is higher than the average price across all models. Show the average price and vehicle count
 SELECT
     m.id AS model_id,
     m.name AS model_name,
@@ -43,9 +43,9 @@ SELECT
     COUNT(v.id) AS vehicles_count
 FROM models m
 JOIN vehicles v ON m.id = v.model_id
-WHERE v.is_active = true
+WHERE v.status = 'in_stock'
 GROUP BY m.id, m.name
-HAVING AVG(v.price) > (SELECT AVG(price) FROM vehicles WHERE is_active = true);
+HAVING AVG(v.price) > (SELECT AVG(price) FROM vehicles WHERE status = 'in_stock');
 
 
 -- Get a list of dealerships and the number of unique models for each, including dealerships without vehicles
