@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 
 
 async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Path) -> None:
+    """Creates employee users from the YAML file unless they already exist."""
     if not employees_path.is_file():
         logger.debug("Employees seed file not found: %s", employees_path)
         return
@@ -30,7 +31,7 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
     password_handler = PasswordHandler()
     repo = UserRepository(db)
 
-    for raw in data["employees"]:
+    for index, raw in enumerate(data["employees"], start=1):
         if not isinstance(raw, dict):
             logger.warning("Skipping invalid employee entry (not a mapping)")
             continue
@@ -45,12 +46,12 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
             continue
 
         if "password" not in raw or raw["password"] is None:
-            logger.warning("Skipping employee %s: missing password in YAML", email)
+            logger.warning("Skipping employee entry #%d: missing password in YAML", index)
             continue
 
         password_plain = str(raw["password"]).strip()
         if not password_plain:
-            logger.warning("Skipping employee %s: empty password in YAML", email)
+            logger.warning("Skipping employee entry #%d: empty password in YAML", index)
             continue
 
         if await repo.get_by_email(email):
@@ -63,7 +64,7 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
             try:
                 user_id = UUID(str(raw["id"]).strip())
             except ValueError:
-                logger.warning("Invalid UUID for employee %s, generating a new id", email)
+                logger.warning("Invalid UUID for employee entry #%d, generating a new id", index)
                 user_id = uuid4()
         else:
             user_id = uuid4()
@@ -82,9 +83,9 @@ async def seed_employees_if_missing(db: IDatabaseConnection, employees_path: Pat
 
         try:
             await repo.create(user)
-            logger.info("Seeded employee user: %s", email)
+            logger.info("Seeded employee user, id: %s", user_id)
         except asyncpg.UniqueViolationError:
             logger.warning(
-                "Skipped employee %s: email or phone already exists for another user",
-                email,
+                "Skipped employee entry #%d: email or phone already exists for another user",
+                index,
             )

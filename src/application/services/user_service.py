@@ -19,13 +19,15 @@ logger = get_logger(__name__)
 
 
 class UserService(IUserService):
+    """Service for user operations."""
+
     def __init__(
         self,
         uow: IUnitOfWork,
         password_handler: IPasswordHandler,
         redis_client: IRedisClient,
         pubsub: IPubSubManager,
-    ):
+    ) -> None:
         self._uow = uow
         self._password_handler = password_handler
         self._cache = CacheManager(redis_client)
@@ -38,24 +40,25 @@ class UserService(IUserService):
             await self._cache.delete_cached(f"user:session:{user_id}")
 
     async def create_user(self, create_dto: UserCreateDTO) -> UserDTO:
-        logger.debug(f"Creating user with email: {create_dto.email}")
+        """Create a new user."""
+        logger.debug("Creating user")
         async with self._uow as uow:
             existing_user = await uow.user_repository.get_by_email(create_dto.email)
             if existing_user:
-                logger.warning(f"User creation failed: email {create_dto.email} already exists")
-                raise BusinessError(f"User with email {create_dto.email} already exists")
+                logger.warning("User creation failed: email already exists")
+                raise BusinessError("User with this email already exists")
 
             existing_user = await uow.user_repository.get_by_phone_number(create_dto.phone_number)
             if existing_user:
-                logger.warning(f"User creation failed: phone number {create_dto.phone_number} already exists")
-                raise BusinessError(f"User with phone number {create_dto.phone_number} already exists")
+                logger.warning("User creation failed: phone number already exists")
+                raise BusinessError("User with this phone number already exists")
 
             hashed_password = self._password_handler.hash_password(create_dto.password)
             user = UserMapper.from_create_dto_to_entity(create_dto, hashed_password)
             created_user = await uow.user_repository.create(user)
-            logger.info(f"User created successfully with id: {created_user.id}, email: {create_dto.email}")
+            logger.info(f"User created successfully with id: {created_user.id}")
 
-            # Если роль пользователя - CUSTOMER, создаем также запись в таблице customers
+            # Every customer user needs a matching customers row.
             if created_user.role == UserRole.CUSTOMER:
                 existing_customer = await uow.customer_repository.get_by_user_id(created_user.id)
                 if not existing_customer:
@@ -82,6 +85,7 @@ class UserService(IUserService):
         return dto
 
     async def get_user(self, user_id: UUID) -> UserDTO:
+        """Get user by ID."""
         logger.debug(f"Getting user with id: {user_id}")
         cache_key = f"user:{user_id}"
         cached_user = await self._cache.get_cached(cache_key, UserDTO)
@@ -99,6 +103,7 @@ class UserService(IUserService):
         return dto
 
     async def get_user_by_email(self, email: str) -> UserDTO:
+        """Get user by email."""
         async with self._uow as uow:
             user = await uow.user_repository.get_by_email(email)
             if not user:
@@ -106,6 +111,7 @@ class UserService(IUserService):
         return UserMapper.from_entity_to_dto(user)
 
     async def get_users(self, user_filter: UserFilter) -> tuple[list[UserDTO], int]:
+        """Get users with filtering and pagination."""
         version = await self._cache.get_namespace_version("users")
         cache_key = f"users:list:v{version}:{hash(str(user_filter))}"
 
@@ -123,6 +129,7 @@ class UserService(IUserService):
     async def update_user(
         self, user_id: UUID, update_dto: UserUpdateDTO, current_user_id: UUID | None = None
     ) -> UserDTO:
+        """Update user."""
         logger.debug(f"Updating user with id: {user_id}, current_user_id: {current_user_id}")
         async with self._uow as uow:
             user = await uow.user_repository.get_by_id(user_id)
@@ -143,14 +150,14 @@ class UserService(IUserService):
             if update_dto.email and update_dto.email != user.email:
                 existing_user = await uow.user_repository.get_by_email(update_dto.email)
                 if existing_user:
-                    logger.warning(f"User update failed: email {update_dto.email} already exists")
-                    raise BusinessError(f"User with email {update_dto.email} already exists")
+                    logger.warning(f"User update failed: new email already exists, user id: {user_id}")
+                    raise BusinessError("User with this email already exists")
 
             if update_dto.phone_number and update_dto.phone_number != user.phone_number:
                 existing_user = await uow.user_repository.get_by_phone_number(update_dto.phone_number)
                 if existing_user:
-                    logger.warning(f"User update failed: phone number {update_dto.phone_number} already exists")
-                    raise BusinessError(f"User with phone number {update_dto.phone_number} already exists")
+                    logger.warning(f"User update failed: new phone number already exists, user id: {user_id}")
+                    raise BusinessError("User with this phone number already exists")
 
             updated_user = UserMapper.from_update_dto_to_entity(user, update_dto)
             saved_user = await uow.user_repository.update(updated_user)
@@ -166,6 +173,7 @@ class UserService(IUserService):
         return dto
 
     async def delete_user(self, user_id: UUID, current_user_id: UUID | None = None) -> bool:
+        """Delete user."""
         logger.debug(f"Deleting user with id: {user_id}, current_user_id: {current_user_id}")
         async with self._uow as uow:
             user = await uow.user_repository.get_by_id(user_id)

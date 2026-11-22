@@ -44,10 +44,9 @@ class CurrentUserProvider:
         try:
             payload = self.token_handler.decode_jwt(token)
         except Exception as exc:
-            logger.warning(f"Failed to decode token: {str(exc)}")
+            logger.warning(f"Failed to decode token: {type(exc).__name__}")
             raise InvalidTokenError(f"Failed to decode token: {str(exc)}") from exc
 
-        # Verify token type
         token_type_str = self.token_handler.get_token_type(token)
         token_type = TokenType(token_type_str)
         if token_type != TokenType.ACCESS:
@@ -57,7 +56,6 @@ class CurrentUserProvider:
                 actual=token_type.value,
             )
 
-        # Extract user id from payload
         user_id_str = payload.get("id") or payload.get("user_id") or payload.get("sub")
         if not user_id_str:
             logger.warning("Token payload missing user id")
@@ -66,7 +64,7 @@ class CurrentUserProvider:
         try:
             user_id = UUID(str(user_id_str))
         except (ValueError, TypeError) as exc:
-            logger.warning(f"Invalid user id in token: {str(exc)}")
+            logger.warning("Invalid user id in token")
             raise InvalidTokenError(f"Invalid user id in token: {str(exc)}") from exc
 
         jti = payload.get("jti")
@@ -75,21 +73,18 @@ class CurrentUserProvider:
             if not session or not session.is_active:
                 logger.warning(f"Token session {jti} is invalid or expired.")
                 raise InvalidTokenError("Session expired or invalid")
-        else:
-            pass
 
-        # Fetch user from database
         cache_key = f"user:session:{user_id}"
         cached_user = await self.cache_manager.get_cached(cache_key, User)
 
         token_is_active = payload.get("is_active")
 
         if cached_user:
-            logger.debug(f"Current user retrieved from cache: {cached_user.email} (id: {cached_user.id})")
+            logger.debug(f"Current user retrieved from cache, id: {cached_user.id}")
             if token_is_active is not None and not token_is_active:
-                raise UserBlockedError(email=cached_user.email)
+                raise UserBlockedError(user_id=str(cached_user.id))
             if not cached_user.is_active:
-                raise UserBlockedError(email=cached_user.email)
+                raise UserBlockedError(user_id=str(cached_user.id))
             return cached_user
 
         logger.debug(f"Fetching user from database with id: {user_id}")
@@ -99,18 +94,15 @@ class CurrentUserProvider:
                 logger.warning(f"User not found with id: {user_id}")
                 raise UserNotFoundError(user_id=str(user_id))
 
-            # Verify user is active (additional check for security)
-            # Also check token payload if available
             if token_is_active is not None and not token_is_active:
-                logger.warning(f"User is blocked: {user.email}")
-                raise UserBlockedError(email=user.email)
+                logger.warning(f"User is blocked, id: {user.id}")
+                raise UserBlockedError(user_id=str(user.id))
 
-            # Verify user is still active in database
             if not user.is_active:
-                logger.warning(f"User is inactive in database: {user.email}")
-                raise UserBlockedError(email=user.email)
+                logger.warning(f"User is inactive in database, id: {user.id}")
+                raise UserBlockedError(user_id=str(user.id))
 
             await self.cache_manager.set_cached(cache_key, user, User, ttl=900)
 
-        logger.debug(f"Current user retrieved successfully: {user.email} (id: {user.id})")
+        logger.debug(f"Current user retrieved successfully, id: {user.id}")
         return user

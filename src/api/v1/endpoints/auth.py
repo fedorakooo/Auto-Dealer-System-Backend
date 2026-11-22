@@ -6,9 +6,9 @@ from pydantic import SecretStr
 from src.api.dependencies.services import get_auth_service, get_user_service
 from src.api.v1.models.tokens import TokenResponse
 from src.api.v1.models.user_models import UserCreateRequest, UserResponse
+from src.application.abstractions.auth_service import IAuthService
+from src.application.abstractions.user_service import IUserService
 from src.application.dtos.auth_dto import LoginDTO, RefreshTokenDTO
-from src.application.services.auth_service import AuthService
-from src.application.services.user_service import UserService
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -26,9 +26,10 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 )
 async def signup(
     user_create: UserCreateRequest,
-    user_service: Annotated[UserService, Depends(get_user_service)],
+    user_service: Annotated[IUserService, Depends(get_user_service)],
 ) -> UserResponse:
-    logger.info(f"Signup request for email: {user_create.email}")
+    """Registers a new user account."""
+    logger.info("Signup request received")
     user_dto = user_create.to_dto()
     created_user = await user_service.create_user(user_dto)
     logger.info(f"User created successfully with id: {created_user.id}")
@@ -46,14 +47,15 @@ async def signup(
     },
 )
 async def signin(
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    auth_service: Annotated[IAuthService, Depends(get_auth_service)],
     username: str = Form(...),
     password: SecretStr = Form(...),
 ) -> TokenResponse:
-    logger.info(f"Login attempt for username: {username}")
+    """Authenticates a user by email and password and issues tokens."""
+    logger.info("Login attempt")
     login_dto = LoginDTO(email=username, password=password.get_secret_value())
     token_info = await auth_service.login(login_dto)
-    logger.info(f"Login successful for username: {username}")
+    logger.info("Login successful")
     return TokenResponse.from_dto(token_info)
 
 
@@ -68,15 +70,15 @@ async def signin(
     },
 )
 async def login(
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    auth_service: Annotated[IAuthService, Depends(get_auth_service)],
     username: str = Form(...),
     password: SecretStr = Form(...),
 ) -> TokenResponse:
     """Alias for /signin endpoint for better compatibility."""
-    logger.info(f"Login attempt for username: {username}")
+    logger.info("Login attempt")
     login_dto = LoginDTO(email=username, password=password.get_secret_value())
     token_info = await auth_service.login(login_dto)
-    logger.info(f"Login successful for username: {username}")
+    logger.info("Login successful")
     return TokenResponse.from_dto(token_info)
 
 
@@ -91,9 +93,10 @@ async def login(
     },
 )
 async def auth_refresh(
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    auth_service: Annotated[IAuthService, Depends(get_auth_service)],
     refresh_token: str = Form(...),
 ) -> TokenResponse:
+    """Exchanges a refresh token for a new token pair."""
     logger.debug("Refresh token request received")
     refresh_dto = RefreshTokenDTO(refresh_token=refresh_token)
     token_info = await auth_service.refresh_token(refresh_dto)
@@ -110,9 +113,10 @@ async def auth_refresh(
     },
 )
 async def logout(
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    auth_service: Annotated[IAuthService, Depends(get_auth_service)],
     refresh_token: str = Form(..., description="The refresh token to invalidate"),
 ) -> None:
+    """Invalidates the given refresh token."""
     logger.info("Logout attempt")
     await auth_service.logout(refresh_token)
     logger.info("Logout successful")
