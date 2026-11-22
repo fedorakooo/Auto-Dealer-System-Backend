@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID
 
 from src.application.abstractions.customer_service import ICustomerService
@@ -35,8 +36,8 @@ class CustomerService(ICustomerService):
                 logger.warning("Customer creation failed: phone number already exists")
                 raise BusinessError("User with this phone number already exists")
 
-            # Создаем пользователя
-            hashed_password = self._password_handler.hash_password(create_dto.password)
+            # bcrypt is CPU-bound; keep it off the event loop.
+            hashed_password = await asyncio.to_thread(self._password_handler.hash_password, create_dto.password)
             user_create_dto = UserCreateDTO(
                 first_name=create_dto.first_name,
                 second_name=create_dto.second_name,

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -53,7 +54,10 @@ class AuthService(IAuthService):
 
             is_valid_password = False
             if user:
-                is_valid_password = self._password_handler.validate_password(login_dto.password, user.hashed_password)
+                # bcrypt is CPU-bound; keep it off the event loop.
+                is_valid_password = await asyncio.to_thread(
+                    self._password_handler.validate_password, login_dto.password, user.hashed_password
+                )
 
             if not user or not is_valid_password:
                 if user:

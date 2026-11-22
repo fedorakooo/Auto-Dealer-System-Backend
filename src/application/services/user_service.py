@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID, uuid4
 
 from src.application.abstractions.user_service import IUserService
@@ -53,7 +54,8 @@ class UserService(IUserService):
                 logger.warning("User creation failed: phone number already exists")
                 raise BusinessError("User with this phone number already exists")
 
-            hashed_password = self._password_handler.hash_password(create_dto.password)
+            # bcrypt is CPU-bound; keep it off the event loop.
+            hashed_password = await asyncio.to_thread(self._password_handler.hash_password, create_dto.password)
             user = UserMapper.from_create_dto_to_entity(create_dto, hashed_password)
             created_user = await uow.user_repository.create(user)
             logger.info(f"User created successfully with id: {created_user.id}")
