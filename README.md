@@ -10,6 +10,7 @@ Project backend for an auto dealership system: user authentication, role-based a
 - [Configuration](#configuration)
 - [How to run](#how-to-run)
 - [Database initialization](#database-initialization)
+- [Deploying under your own brand](#deploying-under-your-own-brand)
 - [API overview](#api-overview)
 - [Authentication and sessions](#authentication-and-sessions)
 - [Audit logging and reports (MongoDB)](#audit-logging-and-reports-mongodb)
@@ -181,11 +182,18 @@ The schema is owned by versioned migrations; the app applies them on startup (`P
 | Path | Purpose |
 |---|---|
 | `db/migrations/NNNN_name.sql` | Forward-only migrations (DDL, triggers, functions/procedures). Applied in order, each in one transaction, checksum-verified |
+| `brands/<pack>/catalog.yaml` | Catalog data of a brand pack (see [Deploying under your own brand](#deploying-under-your-own-brand)) |
 | `db/queries/` | Reference SQL queries and reports (never executed automatically) |
 | `db/dev/drop_all.sql` | Local helper that drops every object; never run it against shared environments |
 
 Rules: never edit an applied migration (startup fails on checksum mismatch) - add a new `NNNN_*.sql` instead.
 Databases created by the previous `initdb.d`/heuristic setup are adopted automatically as `0001_baseline`.
+
+Load the catalog of the selected brand pack (`BRAND`, default `demo`); the importer applies pending migrations first:
+
+```bash
+docker compose --profile seed run --rm db-seed
+```
 
 ### Vehicle and order integrity rules
 
@@ -240,6 +248,144 @@ dealership) and a flat comment thread under each review (`dealership_review_comm
 - Hidden reviews are excluded from the public list and from the rating, but their author still sees them.
 - A review is marked `is_verified_customer` when its author has a non-cancelled order or a completed test drive in that
   dealership. The viewer's own review is returned first.
+
+## Deploying under your own brand
+
+The service is white-label: one backend image and one frontend image serve any make or dealer network.
+A deployment is branded **only by configuration** - no code changes, no per-client image builds.
+One deployment (stack + database) serves one brand; a multi-make dealer is one brand with a multi-make catalog.
+
+### How it works
+
+| Piece | Source of truth | Delivered via |
+|---|---|---|
+| Name, logo, colours, contacts, locale, currency, SEO, home texts/images, feature switches | `brand.yaml` (+ `BRAND__*` env overrides) | `GET /api/v1/brand` - the SPA fetches it at start and applies CSS variables, `<title>`, favicon, formatting |
+| Brand assets (logo, favicon, images) | `<brand dir>/assets/` | `GET /api/v1/brand/assets/<file>` |
+| Body types, engines, transmissions, fuel/transmission/drive codes | PostgreSQL | `GET /api/v1/lookups` |
+| Models, trims, options, dealerships, vehicles | `catalog.yaml` of the brand pack | `python -m src.cli.import_catalog` |
+| CORS origins, OpenAPI title | `server.*` in `brand.yaml` | backend only, never exposed |
+
+### Brand packs
+
+```
+brands/<pack>/
+  brand.yaml      # deploy-time brand config (validated at startup; the API refuses to start on errors)
+  catalog.yaml    # catalog data (validated, idempotent import)
+  assets/         # optional: logo.svg, favicon.svg, images referenced by file name
+```
+
+Shipped packs: `demo` (neutral fictional brand, default), `audi`, `toyota`.
+
+### Steps
+
+1. Copy `brands/demo` to `brands/<your-brand>` (or to any directory you mount into the container) and edit `brand.yaml`.
+2. Point the backend to it:
+   - Docker Compose in this repo: `BRAND=<your-brand> docker compose up -d app` (`./brands` is mounted read-only).
+   - Any other runtime: mount the directory and set `BRAND_DIR=/path/in/container` (or `BRAND_CONFIG_FILE` for the YAML alone).
+3. Load the catalog once (re-running is safe: existing rows are updated, values missing from the pack are kept):
+   ```bash
+   BRAND=<your-brand> docker compose --profile seed run --rm db-seed
+   # or: docker compose run --rm app python -m src.cli.import_catalog /app/brands/<your-brand>/catalog.yaml
+   # validate only: python -m src.cli.import_catalog --dry-run <file>
+   ```
+4. Serve the frontend image with `API_UPSTREAM=http://<backend>:8000`; nginx proxies `/api/` to it, so the same frontend image works for every brand.
+5. Restart the backend after changing `brand.yaml`; browsers pick the new brand up on the next page load (`/brand` is revalidated via ETag on every load).
+
+Local demo with a separate database per brand (the default database stays untouched):
+
+```bash
+docker exec database createdb -U <POSTGRES_USER> auto_dealer_toyota
+BRAND=toyota BRAND_DB_NAME=auto_dealer_toyota docker compose --profile seed run --rm db-seed
+BRAND=toyota BRAND_DB_NAME=auto_dealer_toyota docker compose up -d app
+```
+
+### Configuration reference
+
+Every field is optional. Env overrides use `BRAND__` + the path with `__` as separator, e.g. `BRAND__THEME__ACCENT=#eb0a1e`,
+`BRAND__FEATURES__CUSTOM_ORDERS=false`, `BRAND__SERVER__CORS_ORIGINS='["https://shop.example.com"]'` (lists/objects as JSON).
+Precedence: env > `brand.yaml` > defaults.
+
+Fields typed *text* accept either one string for every language or a per-language map,
+e.g. `hero_title: { ru: "Ваш следующий Audi", en: "Your next Audi" }` (missing languages fall back to `ru`).
+The UI is available in Russian and English: `locale.language` is the default, visitors can switch RU/EN in the header
+(the choice is remembered in the browser).
+
+| Field | Type | Default | Used in |
+|---|---|---|---|
+| `name` | string, 1-60 | `Auto Dealer` | header, footer, `<title>`, aria-labels, API title |
+| `short_name` | string, 1-4 | initials of `name` | monogram logo and generated favicon |
+| `tagline` | text \| null | null | under the name in the header |
+| `legal_name` | string | = `name` | footer copyright |
+| `logo_url` | asset file name or http(s) URL \| null | null (monogram) | header, footer |
+| `favicon_url` | asset file name or http(s) URL \| null | null (monogram in accent colour) | browser tab |
+| `locale.language` | `ru` \| `en` | `ru` | default UI language (visitors can switch), `<html lang>` |
+| `locale.locale` | BCP 47 tag | `ru-RU` | number/date formatting and sorting in the default language (the other language uses `ru-RU` / `en-GB`) |
+| `locale.currency` | ISO 4217 | `BYN` | prices (all prices of a deployment are in this currency) |
+| `locale.country` | ISO 3166-1 alpha-2 | `BY` | reserved for region-specific behaviour |
+| `locale.timezone` | IANA zone | `Europe/Minsk` | date/time formatting |
+| `theme.accent` | `#rrggbb` | `#dc2626` | `--color-accent`: buttons, highlights |
+| `theme.accent_strong` | `#rrggbb` | accent darkened 18% | `--color-accent-strong` (hover) |
+| `theme.accent_subtle` | `#rrggbb` | accent lightened 93% | `--color-accent-subtle` |
+| `theme.primary` | `#rrggbb` | `#1e293b` | `--color-primary`: header, dark sections, `theme-color` |
+| `theme.primary_hover` | `#rrggbb` | primary lightened 12% | `--color-primary-hover` |
+| `theme.focus` | `#rrggbb` | `#2563eb` | focus rings |
+| `contacts.phone` | E.164 (`+375...`) \| null | null | header, footer, company page (`tel:`) |
+| `contacts.phone_display` | string | = `phone` | how the phone is printed |
+| `contacts.email` | email \| null | null | footer, company page |
+| `contacts.address` | text \| null | null | footer, company page |
+| `contacts.location_line` | text \| null | null | footer bottom line |
+| `contacts.working_hours` | list of `{days, hours}` (both text) | `[]` | footer, company page |
+| `contacts.service_hours_note` | text \| null | null | footer |
+| `social` | list of `{type, url}`; type: website, instagram, facebook, telegram, vk, youtube, x, tiktok, whatsapp | `[]` | footer, company page |
+| `seo.title` | text | `name` | `<title>` |
+| `seo.description` | text | static text in `index.html` | meta description |
+| `seo.og_image_url` | asset or URL \| null | null | `og:image` |
+| `home.hero_kicker` / `hero_title` / `hero_subtitle` | text \| null | generic Russian copy | home page hero |
+| `home.images.hero`, `.promo[0..2]`, `.tile_stock`, `.tile_test_drive`, `.tile_dealers`, `.service_maintenance`, `.service_booking`, `.service_parts` | asset or URL \| null | images bundled with the frontend | home page |
+| `features.test_drives` | bool | true | menu, routes, home tiles; API returns 404 when off |
+| `features.service_appointments` | bool | true | same, `/service/appointments*` endpoints |
+| `features.custom_orders` | bool | true | same, `/custom-orders` endpoints |
+| `features.reviews` | bool | true | model and dealership reviews |
+| `features.favorites` | bool | true | favourites button and page |
+| `demo.show_login_hint` | bool | false | shows where demo staff credentials live on the login page |
+| `server.cors_origins` | list of origins | `["http://localhost:3000"]` | CORS (backend only) |
+| `server.api_title` | string | `<name> API` | OpenAPI title (backend only) |
+
+Backend container variables related to branding:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `BRAND_DIR` | `/app/brands/demo` (image) | directory with `brand.yaml` and `assets/` |
+| `BRAND_CONFIG_FILE` | `$BRAND_DIR/brand.yaml` | explicit path to the YAML |
+| `BRAND__...` | - | override any field (see above) |
+| `BRAND` (compose only) | `demo` | selects `./brands/<BRAND>` |
+| `BRAND_DB_NAME` (compose only) | `POSTGRES_NAME` | separate database per brand for local demos |
+
+### Catalog pack format (`catalog.yaml`)
+
+Entities reference each other by name; names are the natural keys for upserts
+(city = name + country, model = name + `production_year_start`, trim = model + name, vehicle = VIN).
+
+```yaml
+cities: [{ name: Grodno, country: Belarus }]
+dealerships:
+  - { name: Toyota Grodno, city: Grodno, country: Belarus, address: "...", phone_number: "+375...", email: grodno@example.com }
+body_types: [Sedan, Crossover, Pickup]
+engines: [{ name: 2.5 Hybrid, fuel_type: hybrid, horsepower: 218 }]        # gasoline|diesel|electric|hybrid|lpg
+transmissions: [{ name: e-CVT, type: cvt, number_of_gears: 1 }]           # automatic|manual|cvt|dct
+features: [{ name: Toyota Safety Sense, description: "..." }]
+models:
+  - name: RAV4
+    body_type: Crossover
+    production_year_start: 2023
+    features: [Toyota Safety Sense]
+    trims: [{ name: 2.5 Hybrid AWD-i, engine: 2.5 Hybrid, transmission: e-CVT, drive_type: AWD }]  # FWD|RWD|AWD
+vehicles:
+  - { vin: JTMW43FV20D000005, model: RAV4, trim: 2.5 Hybrid AWD-i, dealership: Toyota Grodno, production_year: 2024, exterior_color: Khaki, price: 156000 }
+```
+
+Quote values that contain commas inside `{ ... }` flow mappings. Not covered by packs: the service catalog and spare parts
+seeded by migration `0001_baseline` (generic, Russian names) - edit them through the staff UI/API.
 
 ## API overview
 
