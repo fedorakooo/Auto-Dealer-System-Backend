@@ -1,0 +1,104 @@
+# Example Toyota dealer network catalog (sample data for demonstrations).
+# Import: docker compose run --rm app python -m src.cli.import_catalog /app/brands/toyota/catalog.yaml
+
+cities:
+  - { name: Minsk, country: Belarus }
+  - { name: Grodno, country: Belarus }
+  - { name: Gomel, country: Belarus }
+
+dealerships:
+  - { name: Toyota Center Minsk West, city: Minsk, country: Belarus, address: "ul. Timiryazeva 121, Minsk", phone_number: "+375173001010", email: west@toyota-dealer.example, opening_hours: "Mon-Sun 09:00-20:00", latitude: 53.9168, longitude: 27.5134 }
+  - { name: Toyota Center Minsk East, city: Minsk, country: Belarus, address: "pr-t Nezavisimosti 180, Minsk", phone_number: "+375173002020", email: east@toyota-dealer.example, opening_hours: "Mon-Sat 09:00-20:00", latitude: 53.9336, longitude: 27.6635 }
+  - { name: Toyota Grodno, city: Grodno, country: Belarus, address: "ul. Gorkogo 91, Grodno", phone_number: "+375152003030", email: grodno@toyota-dealer.example, opening_hours: "Mon-Sat 09:00-19:00", latitude: 53.6884, longitude: 23.8258 }
+  - { name: Toyota Gomel, city: Gomel, country: Belarus, address: "ul. Barykina 315, Gomel", phone_number: "+375232004040", email: gomel@toyota-dealer.example, opening_hours: "Mon-Sat 09:00-19:00", latitude: 52.3925, longitude: 30.9866 }
+
+body_types: [Sedan, Hatchback, Crossover, SUV, Pickup, Minivan]
+
+engines:
+  - { name: 2.0 Dynamic Force, engine_code: M20A-FKS, displacement_cm3: 1987, cylinders: 4, horsepower: 173, fuel_type: gasoline, configuration: I4, induction: Naturally aspirated }
+  - { name: 2.5 Dynamic Force, engine_code: A25A-FKS, displacement_cm3: 2487, cylinders: 4, horsepower: 203, fuel_type: gasoline, configuration: I4, induction: Naturally aspirated }
+  - { name: 2.5 Hybrid, engine_code: A25A-FXS, displacement_cm3: 2487, cylinders: 4, horsepower: 218, fuel_type: hybrid, configuration: I4, induction: Naturally aspirated }
+  - { name: 1.8 Hybrid, engine_code: 2ZR-FXE, displacement_cm3: 1798, cylinders: 4, horsepower: 140, fuel_type: hybrid, configuration: I4, induction: Naturally aspirated }
+  - { name: 2.8 D-4D, engine_code: 1GD-FTV, displacement_cm3: 2755, cylinders: 4, horsepower: 204, fuel_type: diesel, configuration: I4, induction: Turbocharged }
+  - { name: 3.5 V6 Twin Turbo, engine_code: V35A-FTS, displacement_cm3: 3445, cylinders: 6, horsepower: 415, fuel_type: gasoline, configuration: V6, induction: Turbocharged }
+  - { name: bZ4X e-motor, engine_code: 1XM, horsepower: 218, fuel_type: electric }
+
+transmissions:
+  - { name: Direct Shift CVT, type: cvt, number_of_gears: 10 }
+  - { name: e-CVT, type: cvt, number_of_gears: 1 }
+  - { name: 8-Speed Direct Shift AT, type: automatic, number_of_gears: 8 }
+  - { name: 10-Speed Direct Shift AT, type: automatic, number_of_gears: 10 }
+  - { name: 6-Speed iMT, type: manual, number_of_gears: 6 }
+  - { name: Single-speed reduction gear, type: automatic, number_of_gears: 1 }
+
+features:
+  - { name: Toyota Safety Sense, description: "Pre-collision system, lane tracing and adaptive cruise control." }
+  - { name: JBL Premium Audio, description: "Premium sound system with subwoofer." }
+  - { name: Panoramic View Monitor, description: "360-degree camera view for parking." }
+  - { name: Multi-Terrain Select, description: "Drive modes for sand, mud, rock and snow." }
+  - { name: Wireless smartphone integration, description: "Wireless Apple CarPlay and Android Auto." }
+  - { name: Heated and ventilated seats, description: "Front seats with heating and ventilation." }
+
+models:
+  - name: Corolla
+    body_type: Sedan
+    model_code: E210
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Toyota Safety Sense, Wireless smartphone integration]
+    trims:
+      - { name: 1.8 Hybrid Comfort, engine: 1.8 Hybrid, transmission: e-CVT, drive_type: FWD, max_speed_kmh: 180, acceleration_0_100_sec: 9.2 }
+      - { name: 2.0 Prestige, engine: 2.0 Dynamic Force, transmission: Direct Shift CVT, drive_type: FWD, max_speed_kmh: 200, acceleration_0_100_sec: 8.4 }
+  - name: Camry
+    body_type: Sedan
+    model_code: XV80
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [Toyota Safety Sense, JBL Premium Audio, Heated and ventilated seats]
+    trims:
+      - { name: 2.5 Hybrid Luxury, engine: 2.5 Hybrid, transmission: e-CVT, drive_type: FWD, max_speed_kmh: 180, acceleration_0_100_sec: 8.3 }
+      - { name: 2.5 Elegance, engine: 2.5 Dynamic Force, transmission: 8-Speed Direct Shift AT, drive_type: FWD, max_speed_kmh: 210, acceleration_0_100_sec: 8.6 }
+  - name: RAV4
+    body_type: Crossover
+    model_code: XA50
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Toyota Safety Sense, Panoramic View Monitor]
+    trims:
+      - { name: 2.5 Hybrid AWD-i, engine: 2.5 Hybrid, transmission: e-CVT, drive_type: AWD, max_speed_kmh: 180, acceleration_0_100_sec: 8.1 }
+      - { name: 2.0 Comfort, engine: 2.0 Dynamic Force, transmission: Direct Shift CVT, drive_type: FWD, max_speed_kmh: 185, acceleration_0_100_sec: 11.0 }
+  - name: Land Cruiser 300
+    body_type: SUV
+    model_code: J300
+    production_year_start: 2022
+    number_of_seats: 7
+    features: [Multi-Terrain Select, JBL Premium Audio, Panoramic View Monitor]
+    trims:
+      - { name: 3.5 Executive Lounge, engine: 3.5 V6 Twin Turbo, transmission: 10-Speed Direct Shift AT, drive_type: AWD, max_speed_kmh: 210, acceleration_0_100_sec: 6.7 }
+  - name: Hilux
+    body_type: Pickup
+    model_code: AN120
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Multi-Terrain Select]
+    trims:
+      - { name: 2.8 D-4D Invincible, engine: 2.8 D-4D, transmission: 6-Speed iMT, drive_type: AWD, max_speed_kmh: 175, acceleration_0_100_sec: 10.1 }
+  - name: bZ4X
+    body_type: Crossover
+    model_code: EA10
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [Toyota Safety Sense, Wireless smartphone integration]
+    trims:
+      - { name: FWD Comfort, engine: bZ4X e-motor, transmission: Single-speed reduction gear, drive_type: FWD, max_speed_kmh: 160, acceleration_0_100_sec: 8.4 }
+
+vehicles:
+  - { vin: JTDBR3FE10J000001, model: Corolla, trim: 1.8 Hybrid Comfort, dealership: Toyota Center Minsk West, production_year: 2024, exterior_color: Pure White, interior_color: Black, price: 89000.00 }
+  - { vin: JTDBR3FE10J000002, model: Corolla, trim: 2.0 Prestige, dealership: Toyota Center Minsk East, production_year: 2024, exterior_color: Silver Metallic, interior_color: Black, price: 97000.00 }
+  - { vin: JTNB23HK70J000003, model: Camry, trim: 2.5 Hybrid Luxury, dealership: Toyota Center Minsk West, production_year: 2025, exterior_color: Attitude Black, interior_color: Beige, price: 148000.00 }
+  - { vin: JTNB23HK70J000004, model: Camry, trim: 2.5 Elegance, dealership: Toyota Grodno, production_year: 2024, exterior_color: Platinum White Pearl, interior_color: Black, price: 132000.00 }
+  - { vin: JTMW43FV20D000005, model: RAV4, trim: 2.5 Hybrid AWD-i, dealership: Toyota Center Minsk East, production_year: 2024, exterior_color: Urban Khaki, interior_color: Black, price: 156000.00 }
+  - { vin: JTMW43FV20D000006, model: RAV4, trim: 2.0 Comfort, dealership: Toyota Gomel, production_year: 2023, exterior_color: Blue Metallic, interior_color: Gray, price: 118000.00 }
+  - { vin: JTMHV05J80J000007, model: Land Cruiser 300, trim: 3.5 Executive Lounge, dealership: Toyota Center Minsk West, production_year: 2024, exterior_color: Precious Black, interior_color: Brown, price: 395000.00 }
+  - { vin: AHTKB3CD10J000008, model: Hilux, trim: 2.8 D-4D Invincible, dealership: Toyota Grodno, production_year: 2024, exterior_color: Emotional Red, interior_color: Black, price: 141000.00 }
+  - { vin: JTMAB3BA20D000009, model: bZ4X, trim: FWD Comfort, dealership: Toyota Center Minsk East, production_year: 2025, exterior_color: Dark Blue, interior_color: Black, price: 128000.00 }

@@ -1,0 +1,158 @@
+# Audi dealer network catalog (former db/seeds/dev_data.sql).
+# Import: docker compose run --rm app python -m src.cli.import_catalog /app/brands/audi/catalog.yaml
+
+cities:
+  - { name: Warsaw, country: Poland }
+  - { name: Krakow, country: Poland }
+  - { name: Gdansk, country: Poland }
+  - { name: Wroclaw, country: Poland }
+  - { name: Poznan, country: Poland }
+  - { name: Minsk, country: Belarus }
+  - { name: Brest, country: Belarus }
+  - { name: Grodno, country: Belarus }
+  - { name: Lodz, country: Poland }
+  - { name: Katowice, country: Poland }
+  - { name: Vitebsk, country: Belarus }
+  - { name: Gomel, country: Belarus }
+
+dealerships:
+  - { name: Audi Centrum Warsaw, city: Warsaw, country: Poland, address: "ul. Sekundowa 2, 02-173 Warsaw", phone_number: "+48225737000", email: warszawa@audi-centrum.pl, opening_hours: "Mon-Sat 09:00-20:00", latitude: 52.1937, longitude: 20.9479 }
+  - { name: Audi Krakow, city: Krakow, country: Poland, address: "ul. Zakopiańska 169, 30-435 Krakow", phone_number: "+48122525252", email: krakow@audi-dealer.pl, opening_hours: "Mon-Sat 09:00-19:00", latitude: 50.0152, longitude: 19.9240 }
+  - { name: Audi Centrum Gdansk, city: Gdansk, country: Poland, address: "aleja Grunwaldzka 347, 80-264 Gdansk", phone_number: "+48585207800", email: gdansk@audi-centrum.pl, opening_hours: "Mon-Fri 09:00-18:00", latitude: 54.3813, longitude: 18.5912 }
+  - { name: Audi Minsk, city: Minsk, country: Belarus, address: "pr-t Nezavisimosti 198, Minsk, 220056", phone_number: "+375173360000", email: minsk@audi.by, opening_hours: "Mon-Sun 09:00-20:00", latitude: 53.9388, longitude: 27.6953 }
+  - { name: Audi Brest, city: Brest, country: Belarus, address: "ul. Moskovskaya 364, Brest, 224023", phone_number: "+375162550000", email: brest@audi.by, opening_hours: "Mon-Sat 09:00-19:00", latitude: 52.1009, longitude: 23.7667 }
+  - { name: Audi Minsk North, city: Minsk, country: Belarus, address: "ul. Kalinovskogo 55, Minsk", phone_number: "+375173335555", email: minsk-north@audi.by, opening_hours: "Mon-Sun 09:00-20:00", latitude: 53.9465, longitude: 27.6338 }
+  - { name: Audi Minsk South, city: Minsk, country: Belarus, address: "pr-t Dzerzhinskogo 125, Minsk", phone_number: "+375173337777", email: minsk-south@audi.by, opening_hours: "Mon-Sun 09:00-21:00", latitude: 53.8579, longitude: 27.4856 }
+  - { name: Audi Lodz, city: Lodz, country: Poland, address: "ul. Piotrkowska 100, 90-001 Lodz", phone_number: "+48423678900", email: lodz@audi.pl, opening_hours: "Mon-Sat 09:00-19:00", latitude: 51.7592, longitude: 19.4560 }
+  - { name: Audi Katowice, city: Katowice, country: Poland, address: "ul. 3 Maja 10, 40-001 Katowice", phone_number: "+48322123456", email: katowice@audi.pl, opening_hours: "Mon-Sat 09:00-19:00", latitude: 50.2649, longitude: 19.0238 }
+  - { name: Audi Vitebsk, city: Vitebsk, country: Belarus, address: "ul. Lenina 15, Vitebsk", phone_number: "+375212345678", email: vitebsk@audi.by, opening_hours: "Mon-Sun 09:00-20:00", latitude: 55.1904, longitude: 30.2049 }
+  - { name: Audi Gomel, city: Gomel, country: Belarus, address: "pr-t Lenina 45, Gomel", phone_number: "+375232345678", email: gomel@audi.by, opening_hours: "Mon-Sun 09:00-20:00", latitude: 52.4410, longitude: 30.9754 }
+
+body_types: [Sedan, Avant, Sportback, SUV, Coupe, Roadster, Allroad]
+
+engines:
+  - { name: 35 TFSI, engine_code: EA211 evo, displacement_cm3: 1498, cylinders: 4, horsepower: 150, fuel_type: gasoline, configuration: I4, induction: Turbocharged }
+  - { name: 45 TFSI, engine_code: EA888, displacement_cm3: 1984, cylinders: 4, horsepower: 265, fuel_type: gasoline, configuration: I4, induction: Turbocharged }
+  - { name: 55 TFSI, engine_code: EA839, displacement_cm3: 2995, cylinders: 6, horsepower: 340, fuel_type: gasoline, configuration: V6, induction: Turbocharged }
+  - { name: 40 TDI, engine_code: EA288 evo, displacement_cm3: 1968, cylinders: 4, horsepower: 204, fuel_type: diesel, configuration: I4, induction: Turbocharged }
+  - { name: 50 TDI, engine_code: EA897 evo, displacement_cm3: 2967, cylinders: 6, horsepower: 286, fuel_type: diesel, configuration: V6, induction: Turbocharged }
+  - { name: e-tron 55 quattro, engine_code: EDU55, horsepower: 408, fuel_type: electric }
+  - { name: 4.0 TFSI V8, engine_code: EA825, displacement_cm3: 3996, cylinders: 8, horsepower: 600, fuel_type: gasoline, configuration: V8, induction: Turbocharged }
+  - { name: 30 TFSI, engine_code: EA211, displacement_cm3: 999, cylinders: 3, horsepower: 110, fuel_type: gasoline, configuration: I3, induction: Turbocharged }
+  - { name: 60 TDI, engine_code: EA897 evo2, displacement_cm3: 3956, cylinders: 8, horsepower: 435, fuel_type: diesel, configuration: V8, induction: Turbocharged }
+  - { name: e-tron 50 quattro, engine_code: EDU50, horsepower: 308, fuel_type: electric }
+
+transmissions:
+  - { name: S tronic, type: dct, number_of_gears: 7 }
+  - { name: tiptronic, type: automatic, number_of_gears: 8 }
+  - { name: 6-Speed Manual, type: manual, number_of_gears: 6 }
+  - { name: e-tron single-speed, type: automatic, number_of_gears: 1 }
+  - { name: 7-Speed S tronic, type: dct, number_of_gears: 7 }
+  - { name: 8-Speed tiptronic, type: automatic, number_of_gears: 8 }
+
+features:
+  - { name: Audi virtual cockpit plus, description: Fully digital 12.3-inch instrument cluster. }
+  - { name: Matrix LED headlights, description: Adaptive LED headlights with dynamic turn signals. }
+  - { name: MMI Navigation plus system, description: Advanced navigation system with MMI touch response display. }
+  - { name: quattro drive, description: Legendary permanent all-wheel drive from Audi. }
+  - { name: Air suspension, description: Adaptive air suspension system. }
+  - { name: Bang & Olufsen Premium Sound System, description: 3D audio sound system. }
+  - { name: S line package, description: Styling S line package. }
+  - { name: Parking assistant plus, description: 360° camera system and automatic parking. }
+  - { name: Heads-up Display, description: Projection display on the windshield. }
+  - { name: Adaptive Cruise Assist, description: Adaptive cruise control system. }
+  - { name: Night Vision Assistant, description: Night vision assistance system. }
+  - { name: Rear Seat Entertainment, description: Screens for rear passengers. }
+
+models:
+  - name: A4 Sedan
+    body_type: Sedan
+    model_code: 8W
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Audi virtual cockpit plus, Matrix LED headlights]
+    trims:
+      - { name: 45 TFSI quattro, engine: 45 TFSI, transmission: S tronic, drive_type: AWD }
+      - { name: 35 TFSI, engine: 35 TFSI, transmission: 7-Speed S tronic, drive_type: FWD }
+  - name: Q7
+    body_type: SUV
+    model_code: 4M
+    production_year_start: 2022
+    number_of_seats: 7
+    features: [MMI Navigation plus system, quattro drive]
+    trims:
+      - { name: 50 TDI quattro, engine: 50 TDI, transmission: tiptronic, drive_type: AWD }
+  - name: A5 Sportback
+    body_type: Sportback
+    model_code: F5
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [Audi virtual cockpit plus, Matrix LED headlights, Air suspension]
+    trims:
+      - { name: 55 TFSI quattro, engine: 55 TFSI, transmission: S tronic, drive_type: AWD }
+      - { name: 50 TFSI quattro, engine: 45 TFSI, transmission: S tronic, drive_type: AWD }
+  - name: Q8 e-tron
+    body_type: SUV
+    model_code: GE
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Bang & Olufsen Premium Sound System, Adaptive Cruise Assist]
+    trims:
+      - { name: 55 quattro, engine: e-tron 55 quattro, transmission: e-tron single-speed, drive_type: AWD }
+  - name: A6 Avant
+    body_type: Avant
+    model_code: 4K
+    production_year_start: 2023
+    number_of_seats: 5
+    trims:
+      - { name: 40 TDI, engine: 40 TDI, transmission: S tronic, drive_type: FWD }
+  - name: A3 Sportback
+    body_type: Sportback
+    model_code: 8Y
+    production_year_start: 2024
+    number_of_seats: 5
+    trims:
+      - { name: 35 TFSI, engine: 35 TFSI, transmission: S tronic, drive_type: FWD }
+  - name: RS 6 Avant
+    body_type: Avant
+    model_code: 4K
+    production_year_start: 2024
+    number_of_seats: 5
+    trims:
+      - { name: 4.0 TFSI V8, engine: 4.0 TFSI V8, transmission: tiptronic, drive_type: AWD }
+  - name: A3 Sedan
+    body_type: Sedan
+    model_code: 8Y
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [Audi virtual cockpit plus, Matrix LED headlights]
+    trims:
+      - { name: 30 TFSI, engine: 30 TFSI, transmission: 7-Speed S tronic, drive_type: FWD }
+  - name: Q8
+    body_type: SUV
+    model_code: 4M
+    production_year_start: 2023
+    number_of_seats: 7
+    features: [MMI Navigation plus system, quattro drive]
+    trims:
+      - { name: 60 TDI quattro, engine: 60 TDI, transmission: tiptronic, drive_type: AWD }
+  - name: Q4 e-tron
+    body_type: SUV
+    model_code: GE
+    production_year_start: 2023
+    number_of_seats: 5
+    trims:
+      - { name: 50 quattro, engine: e-tron 50 quattro, transmission: e-tron single-speed, drive_type: AWD }
+
+vehicles:
+  - { vin: WAUZZZ8WXP0000001, model: A4 Sedan, trim: 45 TFSI quattro, dealership: Audi Centrum Warsaw, production_year: 2023, exterior_color: Daytona Gray, interior_color: Black, price: 45000.00 }
+  - { vin: WAUZZZ4MXN0000002, model: Q7, trim: 50 TDI quattro, dealership: Audi Krakow, production_year: 2022, exterior_color: Glacier White, interior_color: Brown, price: 80000.00 }
+  - { vin: WAUZZZF5XP0000003, model: A5 Sportback, trim: 55 TFSI quattro, dealership: Audi Centrum Gdansk, production_year: 2024, exterior_color: Tango Red, interior_color: Black, price: 55000.00 }
+  - { vin: WAUZZZGEYP0000004, model: Q8 e-tron, trim: 55 quattro, dealership: Audi Minsk, production_year: 2023, exterior_color: Plasma Blue, interior_color: Gray, price: 90000.00 }
+  - { vin: WAUZZZ4KXP0000005, model: A6 Avant, trim: 40 TDI, dealership: Audi Centrum Warsaw, production_year: 2023, exterior_color: Mythos Black, interior_color: Beige, price: 60000.00 }
+  - { vin: WAUZZZ8YXP1000009, model: A3 Sportback, trim: 35 TFSI, dealership: Audi Lodz, production_year: 2024, exterior_color: Ibis White, interior_color: Black, price: 35000.00 }
+  - { vin: WAUZZZ4MXN1000010, model: Q8, trim: 60 TDI quattro, dealership: Audi Katowice, production_year: 2023, exterior_color: Daytona Gray, interior_color: Black, price: 95000.00 }
+  - { vin: WAUZZZF5XP1000011, model: A5 Sportback, trim: 50 TFSI quattro, dealership: Audi Centrum Warsaw, production_year: 2025, exterior_color: Arrow Grey, interior_color: Black, price: 60000.00 }
+  - { vin: WAUZZZGEXR1000012, model: Q4 e-tron, trim: 50 quattro, dealership: Audi Minsk, production_year: 2023, exterior_color: Plasma Blue, interior_color: Black, price: 70000.00 }
+  - { vin: WAUZZZ8WXP1000013, model: A4 Sedan, trim: 45 TFSI quattro, dealership: Audi Minsk North, production_year: 2024, exterior_color: Mythos Black, interior_color: Brown, price: 46000.00 }
+  - { vin: WAUZZZGEYP1000014, model: Q8 e-tron, trim: 55 quattro, dealership: Audi Brest, production_year: 2024, exterior_color: Daytona Gray, interior_color: Gray, price: 92000.00 }

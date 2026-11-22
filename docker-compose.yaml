@@ -45,6 +45,24 @@ services:
     networks:
       - app-network
 
+  db-seed:
+    # Imports the catalog pack of the selected brand: docker compose --profile seed run --rm db-seed
+    build: ./
+    profiles: ["seed"]
+    env_file: ./.env
+    environment:
+      - POSTGRES_HOST=database
+      - BRAND_DIR=/app/brands/${BRAND:-demo}
+      - POSTGRES_NAME=${BRAND_DB_NAME:-${POSTGRES_NAME}}
+    volumes:
+      - ./brands:/app/brands:ro
+    command: ["sh", "-c", "python -m src.cli.import_catalog $$BRAND_DIR/catalog.yaml"]
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+
   redis:
     image: redis:8.0
     container_name: redis

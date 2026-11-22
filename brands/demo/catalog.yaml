@@ -1,0 +1,86 @@
+# Neutral demo catalog of a fictional brand; the default for local development.
+# Import: docker compose --profile seed run --rm db-seed   (or python -m src.cli.import_catalog brands/demo/catalog.yaml)
+
+cities:
+  - { name: Minsk, country: Belarus }
+  - { name: Brest, country: Belarus }
+
+dealerships:
+  - { name: Demo Motors Central, city: Minsk, country: Belarus, address: "1 Example Avenue, Minsk", phone_number: "+375170000001", email: central@demo-motors.example, opening_hours: "Mon-Sun 09:00-20:00", latitude: 53.9045, longitude: 27.5615 }
+  - { name: Demo Motors North, city: Minsk, country: Belarus, address: "25 Sample Street, Minsk", phone_number: "+375170000002", email: north@demo-motors.example, opening_hours: "Mon-Sat 09:00-19:00", latitude: 53.9480, longitude: 27.6010 }
+  - { name: Demo Motors Brest, city: Brest, country: Belarus, address: "7 Test Road, Brest", phone_number: "+375160000003", email: brest@demo-motors.example, opening_hours: "Mon-Sat 09:00-18:00", latitude: 52.0976, longitude: 23.7341 }
+
+body_types: [Sedan, Hatchback, Wagon, Crossover, SUV]
+
+engines:
+  - { name: 1.5 Petrol, engine_code: DM-P15, displacement_cm3: 1498, cylinders: 4, horsepower: 150, fuel_type: gasoline, configuration: I4, induction: Turbocharged }
+  - { name: 2.0 Petrol, engine_code: DM-P20, displacement_cm3: 1998, cylinders: 4, horsepower: 245, fuel_type: gasoline, configuration: I4, induction: Turbocharged }
+  - { name: 2.0 Diesel, engine_code: DM-D20, displacement_cm3: 1995, cylinders: 4, horsepower: 190, fuel_type: diesel, configuration: I4, induction: Turbocharged }
+  - { name: 1.6 Hybrid, engine_code: DM-H16, displacement_cm3: 1598, cylinders: 4, horsepower: 180, fuel_type: hybrid, configuration: I4, induction: Naturally aspirated }
+  - { name: Electric 70 kWh, engine_code: DM-E70, horsepower: 286, fuel_type: electric }
+
+transmissions:
+  - { name: 6-Speed Manual Demo, type: manual, number_of_gears: 6 }
+  - { name: 8-Speed Automatic Demo, type: automatic, number_of_gears: 8 }
+  - { name: 7-Speed Dual-Clutch Demo, type: dct, number_of_gears: 7 }
+  - { name: Single-Speed Demo, type: automatic, number_of_gears: 1 }
+
+features:
+  - { name: Digital instrument cluster, description: "Configurable digital driver display." }
+  - { name: LED headlights, description: "Full LED front lighting." }
+  - { name: Adaptive cruise control, description: "Keeps distance to the vehicle ahead." }
+  - { name: 360-degree camera, description: "Surround view for parking." }
+  - { name: Premium audio, description: "Premium sound system." }
+
+models:
+  - name: Demo Sedan
+    body_type: Sedan
+    model_code: DS1
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [Digital instrument cluster, LED headlights]
+    trims:
+      - { name: 1.5 Comfort, engine: 1.5 Petrol, transmission: 6-Speed Manual Demo, drive_type: FWD, max_speed_kmh: 205, acceleration_0_100_sec: 8.9 }
+      - { name: 2.0 Sport, engine: 2.0 Petrol, transmission: 7-Speed Dual-Clutch Demo, drive_type: AWD, max_speed_kmh: 245, acceleration_0_100_sec: 6.2 }
+  - name: Demo Hatch
+    body_type: Hatchback
+    model_code: DH1
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [LED headlights]
+    trims:
+      - { name: 1.6 Hybrid, engine: 1.6 Hybrid, transmission: 8-Speed Automatic Demo, drive_type: FWD, max_speed_kmh: 190, acceleration_0_100_sec: 8.5 }
+  - name: Demo Tourer
+    body_type: Wagon
+    model_code: DT1
+    production_year_start: 2023
+    number_of_seats: 5
+    features: [Adaptive cruise control, Premium audio]
+    trims:
+      - { name: 2.0 Diesel, engine: 2.0 Diesel, transmission: 8-Speed Automatic Demo, drive_type: FWD, max_speed_kmh: 225, acceleration_0_100_sec: 7.9 }
+  - name: Demo Cross
+    body_type: Crossover
+    model_code: DC1
+    production_year_start: 2024
+    number_of_seats: 5
+    features: [360-degree camera, Adaptive cruise control]
+    trims:
+      - { name: 1.6 Hybrid AWD, engine: 1.6 Hybrid, transmission: 8-Speed Automatic Demo, drive_type: AWD, max_speed_kmh: 190, acceleration_0_100_sec: 8.1 }
+      - { name: Electric, engine: Electric 70 kWh, transmission: Single-Speed Demo, drive_type: RWD, max_speed_kmh: 180, acceleration_0_100_sec: 6.9 }
+  - name: Demo Explorer
+    body_type: SUV
+    model_code: DX1
+    production_year_start: 2023
+    number_of_seats: 7
+    features: [360-degree camera, Premium audio, Digital instrument cluster]
+    trims:
+      - { name: 2.0 Diesel AWD, engine: 2.0 Diesel, transmission: 8-Speed Automatic Demo, drive_type: AWD, max_speed_kmh: 210, acceleration_0_100_sec: 8.4 }
+
+vehicles:
+  - { vin: XDM0DS1A0R0000001, model: Demo Sedan, trim: 1.5 Comfort, dealership: Demo Motors Central, production_year: 2024, exterior_color: White, interior_color: Black, price: 62000.00 }
+  - { vin: XDM0DS1A0R0000002, model: Demo Sedan, trim: 2.0 Sport, dealership: Demo Motors North, production_year: 2025, exterior_color: Graphite, interior_color: Black, price: 84000.00 }
+  - { vin: XDM0DH1A0R0000003, model: Demo Hatch, trim: 1.6 Hybrid, dealership: Demo Motors Central, production_year: 2024, exterior_color: Blue, interior_color: Gray, price: 58000.00 }
+  - { vin: XDM0DT1A0P0000004, model: Demo Tourer, trim: 2.0 Diesel, dealership: Demo Motors Brest, production_year: 2023, exterior_color: Silver, interior_color: Black, price: 71000.00 }
+  - { vin: XDM0DC1A0R0000005, model: Demo Cross, trim: 1.6 Hybrid AWD, dealership: Demo Motors North, production_year: 2024, exterior_color: Green, interior_color: Beige, price: 79000.00 }
+  - { vin: XDM0DC1A0S0000006, model: Demo Cross, trim: Electric, dealership: Demo Motors Central, production_year: 2025, exterior_color: White, interior_color: Black, price: 96000.00 }
+  - { vin: XDM0DX1A0P0000007, model: Demo Explorer, trim: 2.0 Diesel AWD, dealership: Demo Motors Brest, production_year: 2023, exterior_color: Black, interior_color: Brown, price: 112000.00 }
