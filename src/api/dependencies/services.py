@@ -21,6 +21,7 @@ from src.application.abstractions.operations_service import IOperationsService
 from src.application.abstractions.order_service import IOrderService
 from src.application.abstractions.review_service import IReviewService
 from src.application.abstractions.testdrive_service import ITestDriveService
+from src.application.abstractions.trim_service import ITrimService
 from src.application.abstractions.user_service import IUserService
 from src.application.abstractions.vehicle_media_service import IVehicleMediaService
 from src.application.abstractions.vehicle_service import IVehicleService
@@ -38,6 +39,7 @@ from src.application.services.operations_service import OperationsService
 from src.application.services.order_service import OrderService
 from src.application.services.review_service import ReviewService
 from src.application.services.testdrive_service import TestDriveService
+from src.application.services.trim_service import TrimService
 from src.application.services.user_service import UserService
 from src.application.services.vehicle_media_service import VehicleMediaService
 from src.application.services.vehicle_service import VehicleService
@@ -53,6 +55,7 @@ from src.infrastructure.mongodb.repositories.log_repository import LogRepository
 
 
 def create_log_service(mongodb_client: MongoDBClient) -> LogService:
+    """Builds a log service on top of the MongoDB logs collection."""
     return LogService(log_repository=LogRepository(mongodb_client.db.logs))
 
 
@@ -63,6 +66,7 @@ def get_auth_service(
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
     session_repository: Annotated[ISessionRepository, Depends(get_session_repository)],
 ) -> IAuthService:
+    """Provides the authentication service."""
     return AuthService(
         uow=uow,
         password_handler=password_handler,
@@ -78,6 +82,7 @@ def get_user_service(
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
     pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IUserService:
+    """Provides the user service."""
     return UserService(
         uow=uow,
         password_handler=password_handler,
@@ -90,6 +95,7 @@ def get_model_media_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     s3_client: Annotated[IS3Client | None, Depends(get_s3_client)],
 ) -> IModelMediaService:
+    """Provides the model media service."""
     return ModelMediaService(uow=uow, s3_client=s3_client)
 
 
@@ -97,6 +103,7 @@ def get_vehicle_media_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     s3_client: Annotated[IS3Client | None, Depends(get_s3_client)],
 ) -> IVehicleMediaService:
+    """Provides the vehicle media service."""
     return VehicleMediaService(uow=uow, s3_client=s3_client)
 
 
@@ -106,6 +113,7 @@ def get_vehicle_service(
     vehicle_media_service: Annotated[IVehicleMediaService | None, Depends(get_vehicle_media_service)],
     pubsub: Annotated[IPubSubManager, Depends(get_pubsub_manager)],
 ) -> IVehicleService:
+    """Provides the vehicle service."""
     return VehicleService(
         uow=uow,
         pubsub=pubsub,
@@ -118,6 +126,7 @@ def get_city_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> ICityService:
+    """Provides the city service."""
     return CityService(uow=uow, redis_client=redis_client)
 
 
@@ -125,6 +134,7 @@ def get_customer_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     password_handler: Annotated[IPasswordHandler, Depends(get_password_handler)],
 ) -> ICustomerService:
+    """Provides the customer service."""
     return CustomerService(uow=uow, password_handler=password_handler)
 
 
@@ -132,58 +142,75 @@ def get_dealership_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     redis_client: Annotated[IRedisClient, Depends(get_redis_client)],
 ) -> IDealershipService:
+    """Provides the dealership service."""
     return DealershipService(uow=uow, redis_client=redis_client)
 
 
 def get_feature_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IFeatureService:
+    """Provides the feature service."""
     return FeatureService(uow=uow)
+
+
+def get_trim_service(
+    uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
+) -> ITrimService:
+    """Provides the trim service."""
+    return TrimService(uow=uow)
 
 
 def get_model_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
     model_media_service: Annotated[IModelMediaService, Depends(get_model_media_service)],
 ) -> IModelService:
+    """Provides the model service."""
     return ModelService(uow=uow, model_media_service=model_media_service)
 
 
 def get_order_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IOrderService:
+    """Provides the order service."""
     return OrderService(uow=uow)
 
 
 def get_operations_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IOperationsService:
+    """Provides the operations service."""
     return OperationsService(uow=uow)
 
 
 def get_custom_order_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> ICustomOrderService:
+    """Provides the custom order service."""
     return CustomOrderService(uow=uow)
 
 
 def get_review_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IReviewService:
+    """Provides the review service."""
     return ReviewService(uow=uow)
 
 
 def get_test_drive_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> ITestDriveService:
+    """Provides the test drive service."""
     return TestDriveService(uow=uow)
 
 
 def get_favorite_service(
     uow: Annotated[IUnitOfWork, Depends(get_unit_of_work)],
 ) -> IFavoriteService:
+    """Provides the favorite service."""
     return FavoriteService(uow=uow)
 
 
 def get_log_service() -> LogService:
+    """Provides the log service."""
     mongodb_client = get_mongodb_client()
     return create_log_service(mongodb_client)

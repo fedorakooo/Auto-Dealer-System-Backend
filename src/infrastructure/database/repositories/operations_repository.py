@@ -4,19 +4,25 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+import asyncpg
+
 from src.domain.abstractions.database.connection import IDatabaseConnection
 from src.domain.abstractions.database.repositories.operations_repository import IOperationsRepository
+from src.infrastructure.database.audit_context import set_audit_context
 
 
-def _dict(row: Any) -> dict[str, Any]:
+def _dict(row: asyncpg.Record) -> dict[str, Any]:
     return dict(row)
 
 
 class OperationsRepository(IOperationsRepository):
-    def __init__(self, db: IDatabaseConnection):
+    """PostgreSQL repository for operational records."""
+
+    def __init__(self, db: IDatabaseConnection) -> None:
         self._db = db
 
     async def vehicle_history(self, vehicle_id: UUID, kind: str, limit: int) -> list[dict[str, Any]]:
+        """Returns the requested price or lifecycle-status history for a vehicle."""
         queries = {
             "price": """
                 SELECT id, vehicle_id, price, valid_from, valid_to, changed_by_user_id
@@ -33,21 +39,26 @@ class OperationsRepository(IOperationsRepository):
 
     async def add_vehicle_status(
         self, vehicle_id: UUID, status: str, reason: str | None, user_id: UUID
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
+        """Changes the vehicle status and returns the history entry written by the trigger, None if no such vehicle."""
+        await set_audit_context(self._db, user_id, reason)
+        updated = await self._db.execute(
+            "UPDATE vehicles SET status = $2::vehicle_lifecycle_status WHERE id = $1", vehicle_id, status
+        )
+        if updated != "UPDATE 1":
+            return None
         row = await self._db.fetchrow(
             """
-            INSERT INTO vehicle_status_history(vehicle_id, status, reason, changed_by_user_id)
-            VALUES ($1, $2::vehicle_lifecycle_status, $3, $4)
-            RETURNING id, vehicle_id, status, reason, changed_by_user_id, changed_at
+            SELECT id, vehicle_id, status, reason, changed_by_user_id, changed_at
+            FROM vehicle_status_history WHERE vehicle_id = $1
+            ORDER BY changed_at DESC, id DESC LIMIT 1
             """,
             vehicle_id,
-            status,
-            reason,
-            user_id,
         )
         return _dict(row)
 
     async def order_history(self, order_id: UUID, limit: int) -> list[dict[str, Any]]:
+        """Returns status history for an order."""
         rows = await self._db.fetch(
             """
             SELECT id, order_id, from_status, to_status, changed_by_user_id, comment, changed_at
@@ -60,6 +71,7 @@ class OperationsRepository(IOperationsRepository):
         return [_dict(row) for row in rows]
 
     async def payments(self, order_id: UUID, limit: int) -> list[dict[str, Any]]:
+        """Returns payments registered for an order."""
         rows = await self._db.fetch(
             """
             SELECT id, order_id, amount, method, status, external_reference, paid_at, created_at, updated_at
@@ -73,6 +85,7 @@ class OperationsRepository(IOperationsRepository):
     async def create_payment(
         self, order_id: UUID, amount: Decimal, method: str, status: str, external_reference: str | None
     ) -> dict[str, Any]:
+        """Creates and returns an order payment."""
         row = await self._db.fetchrow(
             """
             INSERT INTO order_payments(order_id, amount, method, status, external_reference, paid_at)
@@ -99,12 +112,14 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def addresses(self, customer_id: UUID) -> list[dict[str, Any]]:
+        """Returns addresses belonging to a customer."""
         rows = await self._db.fetch(
             "SELECT * FROM customer_addresses WHERE customer_id = $1 ORDER BY is_default DESC, created_at", customer_id
         )
         return [_dict(row) for row in rows]
 
     async def create_address(self, customer_id: UUID, values: dict[str, Any]) -> dict[str, Any]:
+        """Creates and returns a customer address."""
         if values["is_default"]:
             await self._db.execute(
                 "UPDATE customer_addresses SET is_default = false WHERE customer_id = $1", customer_id
@@ -128,6 +143,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def delete_address(self, customer_id: UUID, address_id: UUID) -> bool:
+        """Deletes a customer address and reports whether it existed."""
         result = await self._db.execute(
             "DELETE FROM customer_addresses WHERE id = $1 AND customer_id = $2", address_id, customer_id
         )
@@ -136,6 +152,7 @@ class OperationsRepository(IOperationsRepository):
     async def update_address(
         self, customer_id: UUID, address_id: UUID, values: dict[str, Any]
     ) -> dict[str, Any] | None:
+        """Updates a customer address and returns it when it exists."""
         if values["is_default"]:
             await self._db.execute(
                 "UPDATE customer_addresses SET is_default = false WHERE customer_id = $1", customer_id
@@ -160,10 +177,12 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row) if row else None
 
     async def employee_profiles(self, limit: int) -> list[dict[str, Any]]:
+        """Returns employee profiles ordered by creation time."""
         rows = await self._db.fetch("SELECT * FROM employee_profiles ORDER BY created_at DESC LIMIT $1", limit)
         return [_dict(row) for row in rows]
 
     async def create_employee_profile(self, values: dict[str, Any]) -> dict[str, Any]:
+        """Creates and returns an employee profile."""
         row = await self._db.fetchrow(
             """
             INSERT INTO employee_profiles(user_id, dealership_id, position, hire_date, status)
@@ -178,6 +197,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def service_catalog(self, limit: int) -> list[dict[str, Any]]:
+        """Returns active service-catalog entries."""
         rows = await self._db.fetch("SELECT * FROM service_catalog WHERE is_active ORDER BY name LIMIT $1", limit)
         return [_dict(row) for row in rows]
 
@@ -189,6 +209,7 @@ class OperationsRepository(IOperationsRepository):
         requested_datetime: datetime,
         notes: str | None,
     ) -> dict[str, Any]:
+        """Creates and returns a service appointment."""
         row = await self._db.fetchrow(
             """
             INSERT INTO service_appointments(customer_id, dealership_id, vehicle_id, requested_datetime, notes)
@@ -203,6 +224,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def appointments(self, customer_id: UUID | None, limit: int) -> list[dict[str, Any]]:
+        """Returns appointments, optionally limited to one customer."""
         rows = await self._db.fetch(
             """
             SELECT * FROM service_appointments
@@ -215,6 +237,7 @@ class OperationsRepository(IOperationsRepository):
         return [_dict(row) for row in rows]
 
     async def change_appointment_status(self, appointment_id: UUID, status: str) -> dict[str, Any] | None:
+        """Updates an appointment status and returns it when it exists."""
         row = await self._db.fetchrow(
             """
             UPDATE service_appointments SET status = $2::service_appointment_status
@@ -226,6 +249,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row) if row else None
 
     async def delete_appointment(self, appointment_id: UUID, customer_id: UUID) -> bool:
+        """Deletes a requested appointment owned by the customer."""
         result = await self._db.execute(
             """
             DELETE FROM service_appointments
@@ -237,6 +261,7 @@ class OperationsRepository(IOperationsRepository):
         return result == "DELETE 1"
 
     async def create_service_order(self, values: dict[str, Any]) -> dict[str, Any]:
+        """Creates and returns a service order."""
         row = await self._db.fetchrow(
             """
             INSERT INTO service_orders(
@@ -253,6 +278,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def add_service_item(self, service_order_id: UUID, values: dict[str, Any]) -> dict[str, Any]:
+        """Adds and returns an item for a service order."""
         row = await self._db.fetchrow(
             """
             INSERT INTO service_order_items(service_order_id, service_id, description, quantity, unit_price)
@@ -267,6 +293,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def change_service_order_status(self, service_order_id: UUID, status: str) -> dict[str, Any]:
+        """Changes and returns a service order status."""
         row = await self._db.fetchrow(
             """
             UPDATE service_orders SET status = $2::service_order_status,
@@ -281,14 +308,17 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def service_orders(self, limit: int) -> list[dict[str, Any]]:
+        """Returns service orders ordered by opening time."""
         rows = await self._db.fetch("SELECT * FROM service_orders ORDER BY opened_at DESC LIMIT $1", limit)
         return [_dict(row) for row in rows]
 
     async def spare_parts(self, limit: int) -> list[dict[str, Any]]:
+        """Returns active spare parts."""
         rows = await self._db.fetch("SELECT * FROM spare_parts WHERE is_active ORDER BY name LIMIT $1", limit)
         return [_dict(row) for row in rows]
 
     async def inventory(self, dealership_id: int, below_reorder: bool, limit: int) -> list[dict[str, Any]]:
+        """Returns inventory for a dealership."""
         rows = await self._db.fetch(
             """
             SELECT i.dealership_id, i.part_id, p.sku, p.name, p.unit_price,
@@ -304,6 +334,7 @@ class OperationsRepository(IOperationsRepository):
         return [_dict(row) for row in rows]
 
     async def reserve_part(self, dealership_id: int, part_id: UUID, quantity: int) -> dict[str, Any]:
+        """Reserves available inventory and returns the resulting balance."""
         await self._db.fetchrow(
             "SELECT part_id FROM dealership_part_inventory WHERE dealership_id = $1 AND part_id = $2 FOR UPDATE",
             dealership_id,
@@ -326,6 +357,7 @@ class OperationsRepository(IOperationsRepository):
         return _dict(row)
 
     async def idempotency(self, key: str) -> dict[str, Any] | None:
+        """Locks and returns an active idempotency result for a key."""
         await self._db.execute("SELECT pg_advisory_xact_lock(hashtext($1))", key)
         row = await self._db.fetchrow(
             "SELECT * FROM idempotency_keys WHERE idempotency_key = $1 AND expires_at > now() FOR UPDATE", key
@@ -342,6 +374,7 @@ class OperationsRepository(IOperationsRepository):
         response_status: int,
         response_body: dict[str, Any],
     ) -> None:
+        """Stores an idempotent response for a completed mutation."""
         await self._db.execute(
             """
             INSERT INTO idempotency_keys(
@@ -361,6 +394,7 @@ class OperationsRepository(IOperationsRepository):
     async def add_outbox(
         self, aggregate_type: str, aggregate_id: str, event_type: str, payload: dict[str, Any]
     ) -> None:
+        """Queues an event in the transactional outbox."""
         await self._db.execute(
             """
             INSERT INTO outbox_events(aggregate_type, aggregate_id, event_type, payload)

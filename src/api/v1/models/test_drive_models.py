@@ -23,6 +23,7 @@ class TestDriveCreateRequest(BaseModel):
     notes: str | None = None
 
     def to_dto(self) -> TestDriveCreateDTO:
+        """Converts the request to a create DTO."""
         return TestDriveCreateDTO(
             customer_id=self.customer_id,
             vehicle_id=self.vehicle_id,
@@ -42,6 +43,7 @@ class TestDriveUpdateRequest(BaseModel):
     notes: str | None = None
 
     def to_dto(self) -> TestDriveUpdateDTO:
+        """Converts the request to an update DTO."""
         return TestDriveUpdateDTO(
             vehicle_id=self.vehicle_id,
             dealership_id=self.dealership_id,
@@ -57,6 +59,7 @@ class TestDriveResponse(BaseModel):
     id: UUID
     customer_id: UUID
     vehicle_id: UUID
+    model_id: UUID | None = None
     dealership_id: int
     requested_datetime: datetime
     status: TestDriveStatus = TestDriveStatus.REQUESTED
@@ -66,10 +69,12 @@ class TestDriveResponse(BaseModel):
 
     @classmethod
     def from_dto(cls, test_drive: TestDriveDTO) -> "TestDriveResponse":
+        """Builds the response from a test drive DTO."""
         return cls(
             id=test_drive.id,
             customer_id=test_drive.customer_id,
             vehicle_id=test_drive.vehicle_id,
+            model_id=test_drive.model_id,
             dealership_id=test_drive.dealership_id,
             requested_datetime=test_drive.requested_datetime,
             status=test_drive.status,

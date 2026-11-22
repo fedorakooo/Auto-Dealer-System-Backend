@@ -8,13 +8,25 @@ from src.application.mappers.testdrive_mapper import TestDriveMapper
 from src.domain.abstractions.database.uow import IUnitOfWork
 from src.domain.value_objects.test_drive_status import TestDriveStatus
 from src.domain.value_objects.user_role import UserRole
+from src.domain.value_objects.vehicle_status import VehicleStatus
 
 
 class TestDriveService(ITestDriveService):
-    def __init__(self, uow: IUnitOfWork):
+    """Service for test drive operations."""
+
+    def __init__(self, uow: IUnitOfWork) -> None:
         self._uow = uow
 
+    async def _with_model_ids(self, dtos: list[TestDriveDTO]) -> list[TestDriveDTO]:
+        """Attach each vehicle's model so clients can build /models/{model_id}/vehicles/{vehicle_id} links."""
+        async with self._uow as uow:
+            model_ids = await uow.vehicle_repository.get_model_ids(list({dto.vehicle_id for dto in dtos}))
+        for dto in dtos:
+            dto.model_id = model_ids.get(dto.vehicle_id)
+        return dtos
+
     async def create_test_drive(self, create_dto: TestDriveCreateDTO) -> TestDriveDTO:
+        """Create a new test drive request."""
         async with self._uow as uow:
             customer = await uow.customer_repository.get_by_id(create_dto.customer_id)
             if not customer:
@@ -24,7 +36,7 @@ class TestDriveService(ITestDriveService):
             if not vehicle:
                 raise NotFoundError("Vehicle", str(create_dto.vehicle_id))
 
-            if not vehicle.is_active:
+            if vehicle.status != VehicleStatus.IN_STOCK:
                 raise BusinessError("Vehicle is not available for test drive")
 
             if vehicle.dealership_id != create_dto.dealership_id:
@@ -47,33 +59,38 @@ class TestDriveService(ITestDriveService):
                 created_test_drive.notes = create_dto.notes
                 created_test_drive = await uow.test_drive_repository.update(created_test_drive)
 
-        return TestDriveMapper.from_entity_to_dto(created_test_drive)
+        return (await self._with_model_ids([TestDriveMapper.from_entity_to_dto(created_test_drive)]))[0]
 
     async def get_test_drive(self, test_drive_id: UUID) -> TestDriveDTO:
+        """Get test drive by ID."""
         async with self._uow as uow:
             test_drive = await uow.test_drive_repository.get_by_id(test_drive_id)
             if not test_drive:
                 raise NotFoundError("TestDrive", str(test_drive_id))
-        return TestDriveMapper.from_entity_to_dto(test_drive)
+        return (await self._with_model_ids([TestDriveMapper.from_entity_to_dto(test_drive)]))[0]
 
     async def get_test_drives_by_customer(self, customer_id: UUID) -> list[TestDriveDTO]:
+        """Get test drives by customer ID."""
         async with self._uow as uow:
             test_drives = await uow.test_drive_repository.get_by_customer_id(customer_id)
-        return [TestDriveMapper.from_entity_to_dto(td) for td in test_drives]
+        return await self._with_model_ids([TestDriveMapper.from_entity_to_dto(td) for td in test_drives])
 
     async def get_test_drives_by_dealership(self, dealership_id: int) -> list[TestDriveDTO]:
+        """Get test drives by dealership ID."""
         async with self._uow as uow:
             test_drives = await uow.test_drive_repository.get_by_dealership_id(dealership_id)
-        return [TestDriveMapper.from_entity_to_dto(td) for td in test_drives]
+        return await self._with_model_ids([TestDriveMapper.from_entity_to_dto(td) for td in test_drives])
 
     async def get_test_drives_by_vehicle(self, vehicle_id: UUID) -> list[TestDriveDTO]:
+        """Get test drives by vehicle ID."""
         async with self._uow as uow:
             test_drives = await uow.test_drive_repository.get_by_vehicle_id(vehicle_id)
-        return [TestDriveMapper.from_entity_to_dto(td) for td in test_drives]
+        return await self._with_model_ids([TestDriveMapper.from_entity_to_dto(td) for td in test_drives])
 
     async def update_test_drive(
         self, test_drive_id: UUID, update_dto: TestDriveUpdateDTO, current_user_id: UUID | None = None
     ) -> TestDriveDTO:
+        """Update test drive."""
         async with self._uow as uow:
             test_drive = await uow.test_drive_repository.get_by_id(test_drive_id)
             if not test_drive:
@@ -106,11 +123,12 @@ class TestDriveService(ITestDriveService):
             updated_test_drive = TestDriveMapper.from_update_dto_to_entity(test_drive, update_dto)
             saved_test_drive = await uow.test_drive_repository.update(updated_test_drive)
 
-        return TestDriveMapper.from_entity_to_dto(saved_test_drive)
+        return (await self._with_model_ids([TestDriveMapper.from_entity_to_dto(saved_test_drive)]))[0]
 
     async def update_test_drive_status(
         self, test_drive_id: UUID, new_status: TestDriveStatus, current_user_id: UUID | None = None
     ) -> TestDriveDTO:
+        """Update test drive status."""
         async with self._uow as uow:
             test_drive = await uow.test_drive_repository.get_by_id(test_drive_id)
             if not test_drive:
@@ -125,9 +143,10 @@ class TestDriveService(ITestDriveService):
 
             updated_test_drive = await uow.test_drive_repository.update_status(test_drive_id, new_status)
 
-        return TestDriveMapper.from_entity_to_dto(updated_test_drive)
+        return (await self._with_model_ids([TestDriveMapper.from_entity_to_dto(updated_test_drive)]))[0]
 
     async def delete_test_drive(self, test_drive_id: UUID, current_user_id: UUID | None = None) -> bool:
+        """Delete test drive."""
         async with self._uow as uow:
             test_drive = await uow.test_drive_repository.get_by_id(test_drive_id)
             if not test_drive:

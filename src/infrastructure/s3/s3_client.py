@@ -5,6 +5,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from src.domain.abstractions.s3.s3_client import IS3Client
+from src.domain.exceptions.storage_errors import StorageObjectNotFoundError
 
 
 class S3Client(IS3Client):
@@ -17,7 +18,7 @@ class S3Client(IS3Client):
         endpoint: str,
         region_name: str,
         bucket_name: str,
-    ):
+    ) -> None:
         self.config = {
             "aws_access_key_id": access_key,
             "aws_secret_access_key": secret_key,
@@ -29,8 +30,14 @@ class S3Client(IS3Client):
         self.session = aioboto3.Session()
 
     async def get_file(self, key: str) -> tuple[BytesIO, str]:
+        """Gets a file from the storage by its key. Returns (body, content_type)."""
         async with self.session.client("s3", **self.config) as s3:
-            response = await s3.get_object(Bucket=self.bucket_name, Key=key)
+            try:
+                response = await s3.get_object(Bucket=self.bucket_name, Key=key)
+            except ClientError as exc:
+                if exc.response.get("Error", {}).get("Code", "") in ("NoSuchKey", "404"):
+                    raise StorageObjectNotFoundError(key) from exc
+                raise
             body = await response["Body"].read()
             content_type = response.get("ContentType", "application/octet-stream")
             return BytesIO(body), content_type
@@ -60,6 +67,7 @@ class S3Client(IS3Client):
             return False
 
     async def ensure_bucket_exists(self) -> None:
+        """Creates the bucket if it does not exist."""
         async with self.session.client("s3", **self.config) as s3:
             try:
                 await s3.head_bucket(Bucket=self.bucket_name)

@@ -187,6 +187,32 @@ The schema is owned by versioned migrations; the app applies them on startup (`P
 Rules: never edit an applied migration (startup fails on checksum mismatch) - add a new `NNNN_*.sql` instead.
 Databases created by the previous `initdb.d`/heuristic setup are adopted automatically as `0001_baseline`.
 
+### Vehicle and order integrity rules
+
+Enforced by database triggers (`0003_vehicle_lifecycle_and_order_integrity.sql`), so they hold for every writer:
+
+- `vehicles.status` (`in_stock`, `reserved`, `sold`, `service`, `unavailable`) replaces the old `is_active` flag.
+- `reserved` and `sold` are driven only by orders: creating an order reserves the vehicle, completing it marks it sold,
+  cancelling or deleting an active order releases it. Direct changes to these statuses are rejected.
+- Only `in_stock` vehicles can be ordered or test-driven; the order dealership must match the vehicle's dealership.
+- One non-cancelled order per vehicle (partial unique index); a cancelled vehicle can be ordered again.
+- Order customer, vehicle and dealership are immutable; price changes only while `pending_payment`; status changes follow
+  `pending_payment -> processing -> ready_for_pickup -> completed` (cancel allowed before completion); completed orders cannot be deleted.
+- Vehicle price/status history and order/test-drive status history are written by triggers, including the initial row.
+  The app passes the acting user and reason with `set_config('app.user_id' / 'app.change_reason', ..., true)`.
+- Rule violations raise `P0001` errors that the API maps to HTTP 400 with the rule message.
+
+### Models and trims
+
+- A **model** is a body/line shared by every configuration (`A4 Sedan`: body type, production years, seats, dimensions).
+- A **trim** is a sellable configuration of a model (`45 TFSI quattro`: engine, gearbox, drive type, speed, acceleration,
+  tank, weights), unique by name within its model. Endpoints: `GET/POST /models/{id}/trims`, `GET/PATCH/DELETE /trims/{id}`.
+- Vehicles and custom orders reference a **trim**; `model_id` is derived from it and a composite FK
+  (`(trim_id, model_id) -> trims(id, model_id)`) makes it impossible to combine a trim with another model's id.
+- A trim that is used by a vehicle or a custom order cannot be deleted. `GET /models?engine_id=` matches models having a trim with that engine.
+- `0004_models_and_trims.sql` converts existing data: every old model becomes one model with one trim named after its engine;
+  custom orders that asked for another engine/gearbox pair get an extra trim, so nothing is lost.
+
 ## API overview
 
 All API routes are under `/api/v1` (see `src/api/v1/router.py`).

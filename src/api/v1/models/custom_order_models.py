@@ -19,21 +19,18 @@ class CustomOrderCreateRequest(BaseModel):
 
     customer_id: UUID
     dealership_id: int
-    model_id: UUID
-    engine_id: int
-    transmission_id: int
+    trim_id: UUID
     exterior_color: str
     interior_color: str | None = None
     estimated_price: Decimal | None = None
     notes: str | None = None
 
     def to_dto(self) -> CustomOrderCreateDTO:
+        """Converts the request to a create DTO."""
         return CustomOrderCreateDTO(
             customer_id=self.customer_id,
             dealership_id=self.dealership_id,
-            model_id=self.model_id,
-            engine_id=self.engine_id,
-            transmission_id=self.transmission_id,
+            trim_id=self.trim_id,
             exterior_color=self.exterior_color,
             interior_color=self.interior_color,
             estimated_price=self.estimated_price,
@@ -44,9 +41,7 @@ class CustomOrderCreateRequest(BaseModel):
 class CustomOrderUpdateRequest(BaseModel):
     """Request body for updating a custom order."""
 
-    model_id: UUID | None = None
-    engine_id: int | None = None
-    transmission_id: int | None = None
+    trim_id: UUID | None = None
     exterior_color: str | None = None
     interior_color: str | None = None
     status: CustomOrderStatus | None = None
@@ -55,10 +50,9 @@ class CustomOrderUpdateRequest(BaseModel):
     notes: str | None = None
 
     def to_dto(self) -> CustomOrderUpdateDTO:
+        """Converts the request to an update DTO."""
         return CustomOrderUpdateDTO(
-            model_id=self.model_id,
-            engine_id=self.engine_id,
-            transmission_id=self.transmission_id,
+            trim_id=self.trim_id,
             exterior_color=self.exterior_color,
             interior_color=self.interior_color,
             status=self.status,
@@ -75,8 +69,7 @@ class CustomOrderResponse(BaseModel):
     customer_id: UUID
     dealership_id: int
     model_id: UUID
-    engine_id: int
-    transmission_id: int
+    trim_id: UUID
     exterior_color: str
     interior_color: str | None = None
     status: CustomOrderStatus = CustomOrderStatus.PENDING_APPROVAL
@@ -88,13 +81,13 @@ class CustomOrderResponse(BaseModel):
 
     @classmethod
     def from_dto(cls, custom_order: CustomOrderDTO) -> "CustomOrderResponse":
+        """Builds the response from a custom order DTO."""
         return cls(
             id=custom_order.id,
             customer_id=custom_order.customer_id,
             dealership_id=custom_order.dealership_id,
             model_id=custom_order.model_id,
-            engine_id=custom_order.engine_id,
-            transmission_id=custom_order.transmission_id,
+            trim_id=custom_order.trim_id,
             exterior_color=custom_order.exterior_color,
             interior_color=custom_order.interior_color,
             status=custom_order.status,

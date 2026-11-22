@@ -1,3 +1,5 @@
+from types import TracebackType
+
 import asyncpg
 
 from src.domain.abstractions.database.connection import IDatabaseConnection
@@ -15,6 +17,7 @@ from src.domain.abstractions.database.repositories.order_repository import IOrde
 from src.domain.abstractions.database.repositories.review_repository import IReviewRepository
 from src.domain.abstractions.database.repositories.testdrive_repository import ITestDriveRepository
 from src.domain.abstractions.database.repositories.transmission_repository import ITransmissionRepository
+from src.domain.abstractions.database.repositories.trim_repository import ITrimRepository
 from src.domain.abstractions.database.repositories.user_repository import IUserRepository
 from src.domain.abstractions.database.repositories.vehicle_media_repository import IVehicleMediaRepository
 from src.domain.abstractions.database.repositories.vehicle_repository import IVehicleRepository
@@ -35,6 +38,7 @@ from src.infrastructure.database.repositories.order_repository import OrderRepos
 from src.infrastructure.database.repositories.review_repository import ReviewRepository
 from src.infrastructure.database.repositories.test_drive_repository import TestDriveRepository
 from src.infrastructure.database.repositories.transmission_repository import TransmissionRepository
+from src.infrastructure.database.repositories.trim_repository import TrimRepository
 from src.infrastructure.database.repositories.user_repository import UserRepository
 from src.infrastructure.database.repositories.vehicle_media_repository import VehicleMediaRepository
 from src.infrastructure.database.repositories.vehicle_repository import VehicleRepository
@@ -44,7 +48,9 @@ logger = get_logger(__name__)
 
 
 class UnitOfWork(IUnitOfWork):
-    def __init__(self, db_connection: IDatabaseConnection):
+    """Unit of Work over one PostgreSQL transaction."""
+
+    def __init__(self, db_connection: IDatabaseConnection) -> None:
         self._db = db_connection
         self._connection: asyncpg.Connection | None = None
         self._transaction: asyncpg.transactions.Transaction | None = None
@@ -57,6 +63,7 @@ class UnitOfWork(IUnitOfWork):
         self._transmission_repository: ITransmissionRepository | None = None
         self._model_repository: IModelRepository | None = None
         self._model_media_repository: IModelMediaRepository | None = None
+        self._trim_repository: ITrimRepository | None = None
         self._feature_repository: IFeatureRepository | None = None
         self._vehicle_repository: IVehicleRepository | None = None
         self._order_repository: IOrderRepository | None = None
@@ -83,6 +90,7 @@ class UnitOfWork(IUnitOfWork):
         self._transmission_repository = TransmissionRepository(self._transactional_db)
         self._model_repository = ModelRepository(self._transactional_db)
         self._model_media_repository = ModelMediaRepository(self._transactional_db)
+        self._trim_repository = TrimRepository(self._transactional_db)
         self._feature_repository = FeatureRepository(self._transactional_db)
         self._vehicle_repository = VehicleRepository(self._transactional_db)
         self._order_repository = OrderRepository(self._transactional_db)
@@ -95,7 +103,9 @@ class UnitOfWork(IUnitOfWork):
 
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> None:
         if exc_type is not None:
             logger.debug(f"Transaction rollback due to exception: {exc_type.__name__}")
             await self.rollback()
@@ -109,6 +119,7 @@ class UnitOfWork(IUnitOfWork):
             logger.debug("Database connection released")
 
     async def commit(self) -> None:
+        """Commits the current transaction."""
         if not self._transaction:
             raise DatabaseTransactionError("Transaction is not started")
         try:
@@ -120,6 +131,7 @@ class UnitOfWork(IUnitOfWork):
             raise DatabaseTransactionError(f"Failed to commit transaction: {exc}") from exc
 
     async def rollback(self) -> None:
+        """Rolls back the current transaction."""
         if not self._transaction:
             raise DatabaseTransactionError("Transaction is not started")
         try:
@@ -132,102 +144,126 @@ class UnitOfWork(IUnitOfWork):
 
     @property
     def user_repository(self) -> IUserRepository:
+        """Returns the user repository."""
         if self._user_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._user_repository
 
     @property
     def customer_repository(self) -> ICustomerRepository:
+        """Returns the customer repository."""
         if self._customer_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._customer_repository
 
     @property
     def city_repository(self) -> ICityRepository:
+        """Returns the city repository."""
         if self._city_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._city_repository
 
     @property
     def dealership_repository(self) -> IDealershipRepository:
+        """Returns the dealership repository."""
         if self._dealership_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._dealership_repository
 
     @property
     def engine_repository(self) -> IEngineRepository:
+        """Returns the engine repository."""
         if self._engine_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._engine_repository
 
     @property
     def transmission_repository(self) -> ITransmissionRepository:
+        """Returns the transmission repository."""
         if self._transmission_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._transmission_repository
 
     @property
     def model_repository(self) -> IModelRepository:
+        """Returns the model repository."""
         if self._model_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._model_repository
 
     @property
     def model_media_repository(self) -> IModelMediaRepository:
+        """Returns the model media repository."""
         if self._model_media_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._model_media_repository
 
     @property
+    def trim_repository(self) -> ITrimRepository:
+        """Returns the trim repository."""
+        if self._trim_repository is None:
+            raise UnitOfWorkNotStartedError()
+        return self._trim_repository
+
+    @property
     def feature_repository(self) -> IFeatureRepository:
+        """Returns the feature repository."""
         if self._feature_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._feature_repository
 
     @property
     def vehicle_repository(self) -> IVehicleRepository:
+        """Returns the vehicle repository."""
         if self._vehicle_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._vehicle_repository
 
     @property
     def order_repository(self) -> IOrderRepository:
+        """Returns the order repository."""
         if self._order_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._order_repository
 
     @property
     def custom_order_repository(self) -> ICustomOrderRepository:
+        """Returns the custom order repository."""
         if self._custom_order_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._custom_order_repository
 
     @property
     def review_repository(self) -> IReviewRepository:
+        """Returns the review repository."""
         if self._review_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._review_repository
 
     @property
     def test_drive_repository(self) -> ITestDriveRepository:
+        """Returns the test drive repository."""
         if self._test_drive_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._test_drive_repository
 
     @property
     def vehicle_media_repository(self) -> IVehicleMediaRepository:
+        """Returns the vehicle media repository."""
         if self._vehicle_media_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._vehicle_media_repository
 
     @property
     def favorite_repository(self) -> IFavoriteRepository:
+        """Returns the favorite repository."""
         if self._favorite_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._favorite_repository
 
     @property
     def operations_repository(self) -> IOperationsRepository:
+        """Returns the repository for extended database operations."""
         if self._operations_repository is None:
             raise UnitOfWorkNotStartedError()
         return self._operations_repository

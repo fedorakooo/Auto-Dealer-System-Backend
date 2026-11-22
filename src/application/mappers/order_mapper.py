@@ -11,6 +11,7 @@ class OrderMapper:
 
     @staticmethod
     def from_entity_to_dto(order: Order) -> OrderDTO:
+        """Maps an order entity to a DTO."""
         return OrderDTO(
             id=order.id,
             customer_id=order.customer_id,
@@ -24,6 +25,7 @@ class OrderMapper:
 
     @staticmethod
     def from_create_dto_to_entity(create_dto: OrderCreateDTO) -> Order:
+        """Builds a new order entity from a create DTO."""
         now = datetime.utcnow()
         return Order(
             id=uuid4(),
@@ -41,12 +43,13 @@ class OrderMapper:
         order: Order,
         update_dto: OrderUpdateDTO,
     ) -> Order:
+        """Applies an update DTO to an order entity."""
         return Order(
             id=order.id,
             customer_id=order.customer_id,
-            vehicle_id=update_dto.vehicle_id if update_dto.vehicle_id is not None else order.vehicle_id,
-            dealership_id=update_dto.dealership_id if update_dto.dealership_id is not None else order.dealership_id,
-            status=update_dto.status if update_dto.status is not None else order.status,
+            vehicle_id=order.vehicle_id,
+            dealership_id=order.dealership_id,
+            status=order.status,
             final_price=update_dto.final_price if update_dto.final_price is not None else order.final_price,
             created_at=order.created_at,
             updated_at=datetime.utcnow(),

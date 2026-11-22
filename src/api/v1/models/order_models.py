@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.application.dtos.order_dto import OrderCreateDTO, OrderDTO, OrderUpdateDTO
 from src.domain.value_objects.order_status import OrderStatus
@@ -19,6 +19,7 @@ class OrderCreateRequest(BaseModel):
     final_price: Decimal = Decimal("0.00")
 
     def to_dto(self) -> OrderCreateDTO:
+        """Converts the request to a create DTO."""
         return OrderCreateDTO(
             customer_id=self.customer_id,
             vehicle_id=self.vehicle_id,
@@ -28,20 +29,13 @@ class OrderCreateRequest(BaseModel):
 
 
 class OrderUpdateRequest(BaseModel):
-    """Request body for updating an order."""
+    """Request body for updating an order; the status has its own endpoint."""
 
-    vehicle_id: UUID | None = None
-    dealership_id: int | None = None
-    status: OrderStatus | None = None
-    final_price: Decimal | None = None
+    final_price: Decimal | None = Field(None, gt=0)
 
     def to_dto(self) -> OrderUpdateDTO:
-        return OrderUpdateDTO(
-            vehicle_id=self.vehicle_id,
-            dealership_id=self.dealership_id,
-            status=self.status,
-            final_price=self.final_price,
-        )
+        """Converts the request to an update DTO."""
+        return OrderUpdateDTO(final_price=self.final_price)
 
 
 class OrderResponse(BaseModel):
@@ -50,6 +44,7 @@ class OrderResponse(BaseModel):
     id: UUID
     customer_id: UUID
     vehicle_id: UUID
+    model_id: UUID | None = None
     dealership_id: int
     status: OrderStatus = OrderStatus.PENDING_PAYMENT
     final_price: Decimal = Decimal("0.00")
@@ -58,10 +53,12 @@ class OrderResponse(BaseModel):
 
     @classmethod
     def from_dto(cls, order: OrderDTO) -> "OrderResponse":
+        """Builds the response from an order DTO."""
         return cls(
             id=order.id,
             customer_id=order.customer_id,
             vehicle_id=order.vehicle_id,
+            model_id=order.model_id,
             dealership_id=order.dealership_id,
             status=order.status,
             final_price=order.final_price,

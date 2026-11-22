@@ -7,6 +7,8 @@ from src.domain.value_objects.test_drive_status import TestDriveStatus
 
 @dataclass
 class TestDriveCreateDTO:
+    """Data for creating a test drive."""
+
     customer_id: UUID
     vehicle_id: UUID
     dealership_id: int
@@ -16,6 +18,8 @@ class TestDriveCreateDTO:
 
 @dataclass
 class TestDriveUpdateDTO:
+    """Data for updating a test drive."""
+
     vehicle_id: UUID | None = None
     dealership_id: int | None = None
     requested_datetime: datetime | None = None
@@ -25,6 +29,8 @@ class TestDriveUpdateDTO:
 
 @dataclass
 class TestDriveDTO:
+    """Test drive data returned by the application layer."""
+
     id: UUID
     customer_id: UUID
     vehicle_id: UUID
@@ -34,3 +40,4 @@ class TestDriveDTO:
     notes: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    model_id: UUID | None = None  # model of the vehicle, filled by the service

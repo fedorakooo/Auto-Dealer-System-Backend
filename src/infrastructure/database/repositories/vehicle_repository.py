@@ -9,14 +9,19 @@ from src.domain.abstractions.database.repositories.vehicle_repository import IVe
 from src.domain.entities.vehicle import Vehicle
 from src.domain.utils.uuid_helpers import parse_uuid
 from src.domain.value_objects.filters import VehicleFilter
+from src.domain.value_objects.vehicle_status import VehicleStatus
+from src.infrastructure.database.audit_context import set_audit_context
 from src.infrastructure.database.exceptions import DatabaseNotFoundError, DatabaseUniqueViolationError
 
 
 class VehicleRepository(IVehicleRepository):
-    def __init__(self, db_connection: IDatabaseConnection):
+    """PostgreSQL repository for vehicles."""
+
+    def __init__(self, db_connection: IDatabaseConnection) -> None:
         self._db = db_connection
 
     async def get_by_id(self, vehicle_id: UUID) -> Vehicle | None:
+        """Returns one vehicle by ID or None."""
         query = "SELECT * FROM get_vehicle_with_details($1::UUID, NULL)"
         row = await self._db.fetchrow(query, str(vehicle_id))
         if not row:
@@ -24,6 +29,7 @@ class VehicleRepository(IVehicleRepository):
         return self._row_to_vehicle(row)
 
     async def get_by_vin(self, vin: str) -> Vehicle | None:
+        """Returns one vehicle by VIN or None."""
         query = "SELECT * FROM get_vehicle_with_details(NULL, $1)"
         row = await self._db.fetchrow(query, vin)
         if not row:
@@ -31,121 +37,82 @@ class VehicleRepository(IVehicleRepository):
         return self._row_to_vehicle(row)
 
     async def get_vehicles(self, vehicle_filter: VehicleFilter) -> tuple[list[Vehicle], int]:
-        offset = (vehicle_filter.page - 1) * vehicle_filter.limit
-
-        model_id_uuid = UUID(vehicle_filter.model_id) if vehicle_filter.model_id else None
-        sort_by = vehicle_filter.sort_by.value if vehicle_filter.sort_by else "created_at"
-        order_direction = vehicle_filter.order_by.value.upper()
-        min_price = Decimal(str(vehicle_filter.min_price)) if vehicle_filter.min_price is not None else None
-        max_price = Decimal(str(vehicle_filter.max_price)) if vehicle_filter.max_price is not None else None
-
-        query = """
-            SELECT * FROM get_vehicles_filtered(
-                $1::UUID,
-                $2::INTEGER,
-                $3::BOOLEAN,
-                $4::DECIMAL,
-                $5::DECIMAL,
-                $6::VARCHAR,
-                $7::VARCHAR,
-                $8::INTEGER,
-                $9::INTEGER
-            )
+        """Returns vehicles based on filter."""
+        f = vehicle_filter
+        filter_args = (
+            str(f.model_id) if f.model_id else None,
+            str(f.trim_id) if f.trim_id else None,
+            f.dealership_id,
+            f.status.value if f.status else None,
+            Decimal(str(f.min_price)) if f.min_price is not None else None,
+            Decimal(str(f.max_price)) if f.max_price is not None else None,
+            f.model_name,
+            f.body_type,
+            f.fuel_type.value if f.fuel_type else None,
+            f.transmission_type.value if f.transmission_type else None,
+        )
+        filter_params = """
+            $1::UUID, $2::UUID, $3::INTEGER, $4::vehicle_lifecycle_status, $5::DECIMAL, $6::DECIMAL,
+            $7::VARCHAR, $8::VARCHAR, $9::fuel_type, $10::transmission_type
         """
         rows = await self._db.fetch(
-            query,
-            str(model_id_uuid) if model_id_uuid else None,
-            vehicle_filter.dealership_id,
-            vehicle_filter.is_active,
-            float(min_price) if min_price is not None else None,
-            float(max_price) if max_price is not None else None,
-            sort_by,
-            order_direction,
-            offset,
-            vehicle_filter.limit,
+            f"SELECT * FROM get_vehicles_filtered({filter_params}, "
+            "$11::VARCHAR, $12::VARCHAR, $13::INTEGER, $14::INTEGER)",
+            *filter_args,
+            f.sort_by.value if f.sort_by else "created_at",
+            f.order_by.value.upper(),
+            (f.page - 1) * f.limit,
+            f.limit,
         )
-
-        count_query = """
-            SELECT count_vehicles_filtered(
-                $1::UUID,
-                $2::INTEGER,
-                $3::BOOLEAN,
-                $4::DECIMAL,
-                $5::DECIMAL
-            )
-        """
-        total = await self._db.fetchval(
-            count_query,
-            str(model_id_uuid) if model_id_uuid else None,
-            vehicle_filter.dealership_id,
-            vehicle_filter.is_active,
-            float(min_price) if min_price is not None else None,
-            float(max_price) if max_price is not None else None,
-        )
-
+        total = await self._db.fetchval(f"SELECT count_vehicles_filtered({filter_params})", *filter_args)
         return [self._row_to_vehicle(row) for row in rows], total
 
-    async def get_by_dealership_id(self, dealership_id: int) -> list[Vehicle]:
-        query = """
-            SELECT v.*, m.name as model_name, b.name as body_type, e.name as engine_name, t.name as transmission_name
-            FROM vehicles v
-            LEFT JOIN models m ON m.id = v.model_id
-            LEFT JOIN body_types b ON b.id = m.body_type_id
-            LEFT JOIN engines e ON e.id = m.engine_id
-            LEFT JOIN transmissions t ON t.id = m.transmission_id
-            WHERE v.dealership_id = $1 AND v.is_active = true
-        """
-        rows = await self._db.fetch(query, dealership_id)
-        return [self._row_to_vehicle(row) for row in rows]
-
-    async def search_vehicles(
-        self,
-        model_name: str | None = None,
-        body_type: str | None = None,
-        fuel_type: str | None = None,
-        transmission_type: str | None = None,
-        min_price: float = 0,
-        max_price: float = 99999999,
-        dealership_id: int | None = None,
-    ) -> list[Vehicle]:
-        query = """
-            SELECT v.*, s.model_name
-            FROM search_vehicles($1, $2, $3::fuel_type, $4::transmission_type, $5, $6, $7) AS s
-            JOIN vehicles v ON v.id = s.vehicle_id
-            ORDER BY s.price
-        """
+    async def get_model_ids(self, vehicle_ids: list[UUID]) -> dict[UUID, UUID]:
+        """Returns the model of each given vehicle; unknown vehicles are omitted."""
+        if not vehicle_ids:
+            return {}
         rows = await self._db.fetch(
-            query,
-            model_name,
-            body_type,
-            fuel_type,
-            transmission_type,
-            Decimal(str(min_price)),
-            Decimal(str(max_price)),
-            dealership_id,
+            "SELECT id, model_id FROM vehicles WHERE id = ANY($1::UUID[])", [str(v) for v in vehicle_ids]
         )
-        return [self._row_to_vehicle(row) for row in rows]
+        return {parse_uuid(row["id"]): parse_uuid(row["model_id"]) for row in rows}
+
+    async def get_model_stock_stats(self, model_ids: list[UUID]) -> dict[UUID, tuple[int, Decimal | None]]:
+        """Returns (in-stock count, lowest in-stock price) per model; models without stock are omitted."""
+        if not model_ids:
+            return {}
+        rows = await self._db.fetch(
+            "SELECT * FROM get_model_stock_stats($1::UUID[])", [str(model_id) for model_id in model_ids]
+        )
+        return {
+            parse_uuid(row["model_id"]): (
+                row["vehicles_in_stock"],
+                Decimal(str(row["min_price"])) if row["min_price"] is not None else None,
+            )
+            for row in rows
+        }
 
     async def create(self, vehicle: Vehicle) -> Vehicle:
+        """Creates a new vehicle and returns the created vehicle."""
         query = """
             INSERT INTO vehicles (
-                model_id, dealership_id, vin, production_year, exterior_color,
-                interior_color, price, is_active, created_at
+                model_id, trim_id, dealership_id, vin, production_year, exterior_color,
+                interior_color, price, status, created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vehicle_lifecycle_status, $10)
             RETURNING *
         """
         try:
             row = await self._db.fetchrow(
                 query,
                 str(vehicle.model_id),
+                str(vehicle.trim_id),
                 vehicle.dealership_id,
                 vehicle.vin,
                 vehicle.production_year,
                 vehicle.exterior_color,
                 vehicle.interior_color,
                 float(vehicle.price),
-                vehicle.is_active,
+                vehicle.status.value,
                 vehicle.created_at or datetime.utcnow(),
             )
             return self._row_to_vehicle(row)
@@ -153,10 +120,11 @@ class VehicleRepository(IVehicleRepository):
             raise DatabaseUniqueViolationError(f"Vehicle with this VIN already exists: {exc}") from exc
 
     async def update(self, vehicle: Vehicle) -> Vehicle:
+        """Updates a vehicle and returns the updated vehicle."""
         query = """
             UPDATE vehicles
-            SET model_id = $2, dealership_id = $3, vin = $4, production_year = $5,
-                exterior_color = $6, interior_color = $7, price = $8, is_active = $9,
+            SET model_id = $2, trim_id = $3, dealership_id = $4, vin = $5, production_year = $6,
+                exterior_color = $7, interior_color = $8, price = $9,
                 updated_at = $10
             WHERE id = $1
             RETURNING *
@@ -166,13 +134,13 @@ class VehicleRepository(IVehicleRepository):
                 query,
                 str(vehicle.id),
                 str(vehicle.model_id),
+                str(vehicle.trim_id),
                 vehicle.dealership_id,
                 vehicle.vin,
                 vehicle.production_year,
                 vehicle.exterior_color,
                 vehicle.interior_color,
                 float(vehicle.price),
-                vehicle.is_active,
                 datetime.utcnow(),
             )
             if not row:
@@ -181,25 +149,34 @@ class VehicleRepository(IVehicleRepository):
         except asyncpg.UniqueViolationError as exc:
             raise DatabaseUniqueViolationError(f"Vehicle with this VIN already exists: {exc}") from exc
 
+    async def update_status(
+        self, vehicle_id: UUID, status: VehicleStatus, changed_by: UUID | None = None, reason: str | None = None
+    ) -> bool:
+        """Changes the vehicle lifecycle status and records who did it."""
+        await set_audit_context(self._db, changed_by, reason)
+        result = await self._db.execute(
+            "UPDATE vehicles SET status = $2::vehicle_lifecycle_status WHERE id = $1", str(vehicle_id), status.value
+        )
+        return result == "UPDATE 1"
+
     async def delete(self, vehicle_id: UUID) -> bool:
+        """Deletes a vehicle by its ID."""
         query = "DELETE FROM vehicles WHERE id = $1"
         result = await self._db.execute(query, str(vehicle_id))
         return result == "DELETE 1"
 
     def _row_to_vehicle(self, row: asyncpg.Record) -> Vehicle:
-        vehicle = Vehicle(
+        return Vehicle(
             id=parse_uuid(row["id"]),
             model_id=parse_uuid(row["model_id"]),
+            trim_id=parse_uuid(row["trim_id"]),
             dealership_id=row["dealership_id"],
             vin=row["vin"],
             production_year=row["production_year"],
             exterior_color=row["exterior_color"],
             interior_color=row.get("interior_color"),
             price=Decimal(str(row["price"])),
-            is_active=row["is_active"],
+            status=VehicleStatus(row["status"]),
             created_at=row.get("created_at"),
             updated_at=row.get("updated_at"),
         )
-        # Note: model_name is not part of Vehicle entity, it's only used in queries
-        # If needed, it should be handled at DTO/service level
-        return vehicle
